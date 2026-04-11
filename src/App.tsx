@@ -19,7 +19,8 @@ import {
   Share,
   Download,
   X,
-  Mountain
+  Mountain,
+  WifiOff
 } from "lucide-react";
 import { 
   LineChart, 
@@ -99,9 +100,35 @@ export default function App() {
   const [lastFetchTime, setLastFetchTime] = useState<Date>(new Date());
   const [showSuccess, setShowSuccess] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState("day");
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendingRefresh, setPendingRefresh] = useState(false);
+  const [showOfflineAlert, setShowOfflineAlert] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => {
+      setIsOnline(false);
+      setShowOfflineAlert(true);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isOnline && pendingRefresh) {
+      setPendingRefresh(false);
+      fetchData();
+    }
+  }, [isOnline, pendingRefresh]);
 
   useEffect(() => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
@@ -180,6 +207,11 @@ export default function App() {
   }, [lastFetchTime]);
 
   const fetchData = async () => {
+    if (!navigator.onLine) {
+      setPendingRefresh(true);
+      setShowOfflineAlert(true);
+      return;
+    }
     setRefreshing(true);
     setError(null);
     try {
@@ -335,6 +367,21 @@ export default function App() {
 
       <main className="pt-20 px-4 max-w-4xl mx-auto">
         <AnimatePresence>
+          {pendingRefresh && !isOnline && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mb-6 p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl flex items-center gap-3 text-orange-500"
+            >
+              <WifiOff className="w-5 h-5 shrink-0" />
+              <div className="text-xs">
+                <p className="font-bold uppercase tracking-wider mb-0.5">Offline</p>
+                <p className="opacity-80">Refresh will occur when you reconnect. Using cached data.</p>
+              </div>
+            </motion.div>
+          )}
+
           {showSuccess && (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
@@ -797,6 +844,34 @@ export default function App() {
               )}
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Offline Alert Dialog */}
+      <AnimatePresence>
+        {showOfflineAlert && !isOnline && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="w-full max-w-sm bg-surface-container-low border border-black/5 dark:border-white/10 rounded-[2.5rem] p-8 shadow-2xl text-center"
+            >
+              <div className="w-20 h-20 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <WifiOff className="w-10 h-10 text-orange-500" />
+              </div>
+              <h2 className="text-xl font-bold text-on-surface mb-3 font-headline">Connection Lost</h2>
+              <p className="text-sm text-on-surface-variant opacity-70 mb-8 leading-relaxed">
+                It looks like you're offline. Please find a stable internet connection to refresh the buoy data.
+              </p>
+              <button
+                onClick={() => setShowOfflineAlert(false)}
+                className="w-full bg-on-surface text-surface font-bold py-4 rounded-2xl shadow-lg active:scale-[0.98] transition-all"
+              >
+                OK
+              </button>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
