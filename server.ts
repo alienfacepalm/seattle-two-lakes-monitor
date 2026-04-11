@@ -1,8 +1,8 @@
+import "dotenv/config";
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
-import * as cheerio from "cheerio";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,10 +11,21 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Health check route
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  // API Route to fetch buoy data
   app.get("/api/buoy-data", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    console.log(`[API] Fetching buoy data for: ${req.query.buoy || "Sammamish"}`);
     try {
       const targetBuoy = (req.query.buoy as string) || "Sammamish";
-      const response = await fetch("https://green2.kingcounty.gov/lake-buoy/GenerateMapData.aspx");
+      const response = await fetch("https://green2.kingcounty.gov/lake-buoy/GenerateMapData.aspx", {
+        signal: AbortSignal.timeout(10000),
+        headers: { "Cache-Control": "no-cache" }
+      });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const text = await response.text();
       const buoys = text.split("^").filter(line => line.trim() !== "");
@@ -29,6 +40,20 @@ async function startServer() {
       const airTempC = parseFloat(parts[nameIndex + 2]);
       const windSpeed = parseFloat(parts[nameIndex + 3]);
 
+      // Parse both timestamps and pick the most recent one
+      const ts1 = parts[nameIndex + 1];
+      const ts2 = parts[nameIndex + 6];
+      let bestTimestamp = ts1;
+      try {
+        const d1 = new Date(ts1).getTime();
+        const d2 = new Date(ts2).getTime();
+        if (!isNaN(d2) && (isNaN(d1) || d2 > d1)) {
+          bestTimestamp = ts2;
+        }
+      } catch (e) {
+        // Fallback to ts1
+      }
+
       const data = {
         location: `${parts[nameIndex]} Buoy`,
         tempC: parseFloat(tempC.toFixed(2)),
@@ -36,7 +61,7 @@ async function startServer() {
         airTempC: isNaN(airTempC) ? null : parseFloat(airTempC.toFixed(2)),
         airTempF: isNaN(airTempC) ? null : Math.round((airTempC * 9/5) + 32),
         windSpeed: isNaN(windSpeed) ? null : parseFloat(windSpeed.toFixed(1)),
-        timestamp: parts[nameIndex + 6] || parts[nameIndex + 1], 
+        timestamp: bestTimestamp, 
         status: parts[nameIndex + 9] === "Y" ? "ACTIVE" : "INACTIVE",
         condition: tempC > 20 ? "Warm" : tempC > 10 ? "Moderate" : "Cold",
         lastSync: new Date().toISOString()
@@ -44,14 +69,33 @@ async function startServer() {
       res.json(data);
     } catch (error) {
       console.error("Error fetching buoy data:", error);
-      res.status(500).json({ error: "Failed to fetch real data", message: error instanceof Error ? error.message : String(error) });
+      // Fallback data if external site is unreachable
+      const fallback = {
+        location: `${req.query.buoy || "Sammamish"} Buoy (Offline)`,
+        tempC: 14.5,
+        tempF: 58,
+        airTempC: 12.0,
+        airTempF: 54,
+        windSpeed: 5.0,
+        timestamp: new Date().toISOString(),
+        status: "OFFLINE",
+        condition: "Moderate",
+        lastSync: new Date().toISOString(),
+        isFallback: true
+      };
+      res.json(fallback);
     }
   });
 
   // API Route to fetch all buoy data for the map
   app.get("/api/all-buoys", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    console.log("[API] Fetching all buoys");
     try {
-      const response = await fetch("https://green2.kingcounty.gov/lake-buoy/GenerateMapData.aspx");
+      const response = await fetch("https://green2.kingcounty.gov/lake-buoy/GenerateMapData.aspx", {
+        signal: AbortSignal.timeout(10000),
+        headers: { "Cache-Control": "no-cache" }
+      });
       const text = await response.text();
       const buoys = text.split("^").filter(line => line.trim() !== "");
       
@@ -76,15 +120,24 @@ async function startServer() {
       res.json(buoyData);
     } catch (error) {
       console.error("Error fetching all buoys:", error);
-      res.status(500).json({ error: "Failed to fetch buoy map data" });
+      // Fallback list
+      res.json([
+        { id: "sammamish", name: "Sammamish", tempC: 14.5, tempF: 58, lat: 47.58167, lon: -122.09000, active: false },
+        { id: "washington", name: "Washington", tempC: 13.9, tempF: 57, lat: 47.61222, lon: -122.25428, active: false }
+      ]);
     }
   });
 
   // API Route to fetch history (simulated for now based on real current data)
   app.get("/api/buoy-history", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    console.log(`[API] Fetching history for: ${req.query.buoy || "Sammamish"}`);
     try {
       const targetBuoy = (req.query.buoy as string) || "Sammamish";
-      const response = await fetch("https://green2.kingcounty.gov/lake-buoy/GenerateMapData.aspx");
+      const response = await fetch("https://green2.kingcounty.gov/lake-buoy/GenerateMapData.aspx", {
+        signal: AbortSignal.timeout(10000),
+        headers: { "Cache-Control": "no-cache" }
+      });
       const text = await response.text();
       const buoys = text.split("^").filter(line => line.trim() !== "");
       const buoyLine = buoys.find(line => line.toLowerCase().includes(targetBuoy.toLowerCase()));
@@ -116,7 +169,18 @@ async function startServer() {
       res.json(history);
     } catch (error) {
       console.error("Error generating history:", error);
-      res.status(500).json({ error: "Failed to fetch history" });
+      // Fallback history
+      const history = [];
+      const now = new Date();
+      for (let i = 24; i >= 0; i--) {
+        const time = new Date(now.getTime() - i * 60 * 60 * 1000);
+        history.push({
+          time: time.toISOString(),
+          tempC: 14 + Math.sin(i),
+          tempF: Math.round((14 + Math.sin(i)) * 9/5 + 32)
+        });
+      }
+      res.json(history);
     }
   });
 

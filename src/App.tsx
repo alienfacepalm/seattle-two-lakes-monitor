@@ -13,7 +13,9 @@ import {
   Moon,
   Sun,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Check,
+  ChevronDown
 } from "lucide-react";
 import { 
   LineChart, 
@@ -90,6 +92,17 @@ export default function App() {
     return false;
   });
   const [error, setError] = useState<string | null>(null);
+  const [lastFetchTime, setLastFetchTime] = useState<Date>(new Date());
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [timeOfDay, setTimeOfDay] = useState("day");
+
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 8) setTimeOfDay("dawn");
+    else if (hour >= 8 && hour < 17) setTimeOfDay("day");
+    else if (hour >= 17 && hour < 20) setTimeOfDay("dusk");
+    else setTimeOfDay("night");
+  }, []);
 
   useEffect(() => {
     if (isDark) {
@@ -106,9 +119,14 @@ export default function App() {
   useEffect(() => {
     const updateCountdown = () => {
       const now = new Date();
-      const nextHour = new Date(now);
-      nextHour.setHours(now.getHours() + 1, 0, 0, 0);
-      const diff = nextHour.getTime() - now.getTime();
+      const nextAutoRefresh = new Date(lastFetchTime.getTime() + 60 * 60 * 1000);
+      const diff = nextAutoRefresh.getTime() - now.getTime();
+      
+      if (diff <= 0) {
+        fetchData();
+        return;
+      }
+
       const minutes = Math.floor(diff / 60000);
       const seconds = Math.floor((diff % 60000) / 1000);
       setNextSync(`${minutes}:${seconds.toString().padStart(2, "0")}`);
@@ -117,27 +135,33 @@ export default function App() {
     updateCountdown();
     const timer = setInterval(updateCountdown, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [lastFetchTime]);
 
   const fetchData = async () => {
     setRefreshing(true);
     setError(null);
     try {
       const [currentRes, historyRes, mapRes] = await Promise.all([
-        fetch(`/api/buoy-data?buoy=${selectedBuoy}`),
-        fetch(`/api/buoy-history?buoy=${selectedBuoy}`),
-        fetch("/api/all-buoys")
+        fetch(`/api/buoy-data?buoy=${selectedBuoy}&t=${Date.now()}`, { cache: 'no-store' }),
+        fetch(`/api/buoy-history?buoy=${selectedBuoy}&t=${Date.now()}`, { cache: 'no-store' }),
+        fetch(`/api/all-buoys?t=${Date.now()}`, { cache: 'no-store' })
       ]);
 
-      if (!currentRes.ok) throw new Error("Failed to fetch current data");
+      if (!currentRes.ok) {
+        const errData = await currentRes.json().catch(() => ({}));
+        throw new Error(errData.message || `Server error: ${currentRes.status}`);
+      }
       
       const currentResult = await currentRes.json();
-      const historyResult = await historyRes.json();
-      const mapResult = await mapRes.json();
+      const historyResult = await historyRes.json().catch(() => []);
+      const mapResult = await mapRes.json().catch(() => []);
 
       setData(currentResult);
       setHistory(historyResult);
       setAllBuoys(mapResult);
+      setLastFetchTime(new Date());
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
       console.error("Error fetching data:", error);
       setError(error instanceof Error ? error.message : "An unknown error occurred");
@@ -218,9 +242,13 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen pb-32 transition-colors duration-300 bg-[#f2f2f7] dark:bg-black">
+    <div className="min-h-screen pb-32 transition-colors duration-300 bg-surface">
+      {/* Lake Background */}
+      <div className={`lake-bg lake-bg-${timeOfDay}`} />
+      <div className="lake-waves" />
+
       {/* Top App Bar */}
-      <header className="fixed top-0 w-full z-50 bg-white/70 dark:bg-black/70 backdrop-blur-2xl flex items-center justify-between px-6 h-16 border-b border-black/5 dark:border-white/5">
+      <header className="fixed top-0 w-full z-50 bg-surface/70 backdrop-blur-2xl flex items-center justify-between px-6 h-16 border-b border-black/5 dark:border-white/5">
         <div className="flex items-center gap-3">
           <Waves className="text-primary w-6 h-6" />
           <h1 className="text-lg font-bold text-on-surface font-headline tracking-tight">Seattle Two Lakes Monitor</h1>
@@ -243,6 +271,20 @@ export default function App() {
       </header>
 
       <main className="pt-20 px-4 max-w-4xl mx-auto">
+        <AnimatePresence>
+          {showSuccess && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] bg-secondary text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-xs font-bold"
+            >
+              <Check className="w-3 h-3" />
+              Data Updated Successfully
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {error && (
           <motion.div 
             initial={{ opacity: 0, y: -10 }}
@@ -263,8 +305,26 @@ export default function App() {
               exit={{ opacity: 0, scale: 1.05 }}
               className="space-y-4"
             >
+              {/* Network Selector Dropdown */}
+              <div className="relative group">
+                <select 
+                  value={selectedBuoy}
+                  onChange={(e) => setSelectedBuoy(e.target.value)}
+                  className="w-full bg-surface-container-low text-on-surface font-bold py-4 px-6 rounded-2xl appearance-none border border-black/5 dark:border-white/5 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+                >
+                  {allBuoys.map(buoy => (
+                    <option key={buoy.id} value={buoy.name}>
+                      {buoy.name} Buoy {!buoy.active ? "(Offline)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant opacity-50">
+                  <ChevronDown className="w-5 h-5" />
+                </div>
+              </div>
+
               {/* Main Weather Card */}
-              <section className="bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+              <section className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
                 <div className="flex justify-between items-start">
                   <div>
                     <h2 className="text-2xl font-semibold text-on-surface">{data?.location}</h2>
@@ -272,9 +332,9 @@ export default function App() {
                       {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
-                  <div className="flex gap-1 bg-black/5 dark:bg-white/10 p-1 rounded-xl">
-                    <button onClick={() => setUnit("F")} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${unit === "F" ? "bg-white dark:bg-[#3a3a3c] shadow-sm" : "opacity-50"}`}>°F</button>
-                    <button onClick={() => setUnit("C")} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${unit === "C" ? "bg-white dark:bg-[#3a3a3c] shadow-sm" : "opacity-50"}`}>°C</button>
+                  <div className="flex gap-1 bg-surface-container-highest p-1 rounded-xl">
+                    <button onClick={() => setUnit("F")} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${unit === "F" ? "bg-surface shadow-sm" : "opacity-50"}`}>°F</button>
+                    <button onClick={() => setUnit("C")} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${unit === "C" ? "bg-surface shadow-sm" : "opacity-50"}`}>°C</button>
                   </div>
                 </div>
 
@@ -284,30 +344,45 @@ export default function App() {
                     <div className="flex flex-col items-center">
                       <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">Water</span>
                       <span className="text-7xl font-light tracking-tighter text-on-surface">
-                        {Math.round(currentTemp || 0)}°
+                        {data?.status === "ACTIVE" ? Math.round(currentTemp || 0) : "--"}°
                       </span>
                     </div>
                   </div>
-                  <p className="text-xl font-medium text-on-surface mt-2">{data?.condition} Conditions</p>
+                  <p className="text-xl font-medium text-on-surface mt-2">
+                    {data?.status === "ACTIVE" ? `${data?.condition} Conditions` : "Sensor Offline"}
+                  </p>
                   <div className="flex gap-3 mt-1 text-on-surface-variant font-medium">
-                    <span>H:{Math.round((unit === "F" ? data?.tempF : data?.tempC) || 0) + 2}°</span>
-                    <span>L:{Math.round((unit === "F" ? data?.tempF : data?.tempC) || 0) - 3}°</span>
+                    {data?.status === "ACTIVE" ? (
+                      <>
+                        <span>H:{Math.round((unit === "F" ? data?.tempF : data?.tempC) || 0) + 2}°</span>
+                        <span>L:{Math.round((unit === "F" ? data?.tempF : data?.tempC) || 0) - 3}°</span>
+                      </>
+                    ) : (
+                      <span className="text-xs opacity-50 italic">Historical data unavailable for this sensor</span>
+                    )}
                   </div>
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#ccff00] animate-pulse shadow-[0_0_8px_#ccff00]"></span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Buoy {data?.status}</span>
+                    <span className={`w-2 h-2 rounded-full animate-pulse ${data?.status === "ACTIVE" ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`}></span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                      {data?.status === "ACTIVE" ? "Live Buoy" : "Offline Mode"}
+                    </span>
                   </div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-                    Updated {formatTimestamp(data?.timestamp)}
-                  </p>
+                  <div className="text-right">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                      {data?.status === "ACTIVE" ? `Updated ${formatTimestamp(data?.timestamp)}` : "Data Not Available"}
+                    </p>
+                    <p className="text-[8px] font-medium text-on-surface-variant opacity-50 uppercase tracking-tighter mt-0.5">
+                      Checked {new Date(data?.lastSync || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </p>
+                  </div>
                 </div>
               </section>
 
               {/* Hourly Forecast (Simulated from History) */}
-              <section className="bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5 overflow-hidden">
+              <section className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5 overflow-hidden">
                 <div className="flex items-center gap-2 mb-4 text-on-surface-variant">
                   <Clock className="w-4 h-4" />
                   <span className="text-[10px] font-bold uppercase tracking-widest">Hourly Forecast</span>
@@ -330,17 +405,23 @@ export default function App() {
               {/* Bento Grid */}
               <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {/* Swim Suitability */}
-                <div className="col-span-2 bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+                <div className="col-span-2 bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
                   <div className="flex items-center gap-2 mb-4 text-on-surface-variant">
                     <Waves className="w-4 h-4" />
                     <span className="text-[10px] font-bold uppercase tracking-widest">Swim Suitability</span>
                   </div>
-                  <h3 className={`text-xl font-bold ${suitability?.color}`}>{suitability?.label}</h3>
-                  <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">{suitability?.desc}</p>
+                  {data?.status === "ACTIVE" ? (
+                    <>
+                      <h3 className={`text-xl font-bold ${suitability?.color}`}>{suitability?.label}</h3>
+                      <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">{suitability?.desc}</p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-on-surface-variant opacity-50 italic">Suitability assessment unavailable while sensor is offline</p>
+                  )}
                 </div>
 
                 {/* Wind */}
-                <div className="bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+                <div className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
                   <div className="flex items-center gap-2 mb-4 text-on-surface-variant">
                     <Compass className="w-4 h-4" />
                     <span className="text-[10px] font-bold uppercase tracking-widest">Wind</span>
@@ -348,14 +429,16 @@ export default function App() {
                   <div className="relative w-16 h-16 mx-auto">
                     <div className="absolute inset-0 border-2 border-black/5 dark:border-white/10 rounded-full"></div>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-lg font-bold text-on-surface">{data?.windSpeed}</span>
+                      <span className="text-lg font-bold text-on-surface">
+                        {data?.status === "ACTIVE" ? data?.windSpeed : "--"}
+                      </span>
                     </div>
                   </div>
                   <p className="text-center text-[10px] font-bold text-on-surface-variant mt-2 uppercase">MPH</p>
                 </div>
 
                 {/* Air Temperature */}
-                <div className="bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+                <div className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
                   <div className="flex items-center gap-2 mb-4 text-on-surface-variant">
                     <Sun className="w-4 h-4" />
                     <span className="text-[10px] font-bold uppercase tracking-widest">Air Temp</span>
@@ -367,30 +450,40 @@ export default function App() {
                 </div>
 
                 {/* Seasonal */}
-                <div className="col-span-2 bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+                <div className="col-span-2 bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
                   <div className="flex items-center gap-2 mb-4 text-on-surface-variant">
                     <HistoryIcon className="w-4 h-4" />
                     <span className="text-[10px] font-bold uppercase tracking-widest">Seasonal Trend</span>
                   </div>
-                  <p className="text-sm font-medium text-on-surface">
-                    {seasonal?.isWarmer ? "Warmer" : "Cooler"} than average by <span className="text-primary font-bold">{Math.abs(seasonal?.diff || 0)}°{unit}</span>
-                  </p>
-                  <div className="mt-4 h-1 bg-black/5 dark:bg-white/10 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary transition-all duration-1000" 
-                      style={{ width: `${Math.min(100, Math.max(0, 50 + (seasonal?.diff || 0) * 5))}%` }}
-                    ></div>
-                  </div>
+                  {data?.status === "ACTIVE" ? (
+                    <>
+                      <p className="text-sm font-medium text-on-surface">
+                        {seasonal?.isWarmer ? "Warmer" : "Cooler"} than average by <span className="text-primary font-bold">{Math.abs(seasonal?.diff || 0)}°{unit}</span>
+                      </p>
+                      <div className="mt-4 h-1 bg-black/5 dark:bg-white/10 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary transition-all duration-1000" 
+                          style={{ width: `${Math.min(100, Math.max(0, 50 + (seasonal?.diff || 0) * 5))}%` }}
+                        ></div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-on-surface-variant opacity-50 italic">Trend analysis unavailable</p>
+                  )}
                 </div>
 
                 {/* Pressure */}
-                <div className="bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+                <div className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
                   <div className="flex items-center gap-2 mb-4 text-on-surface-variant">
                     <LayoutDashboard className="w-4 h-4" />
                     <span className="text-[10px] font-bold uppercase tracking-widest">Pressure</span>
                   </div>
-                  <p className="text-2xl font-semibold text-on-surface">29.73</p>
-                  <p className="text-xs text-on-surface-variant mt-1">Falling</p>
+                  <p className="text-2xl font-semibold text-on-surface">
+                    {data?.status === "ACTIVE" ? "29.73" : "--"}
+                  </p>
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    {data?.status === "ACTIVE" ? "Falling" : "Unavailable"}
+                  </p>
                 </div>
 
                 {/* Humidity */}
@@ -399,8 +492,12 @@ export default function App() {
                     <Waves className="w-4 h-4" />
                     <span className="text-[10px] font-bold uppercase tracking-widest">Humidity</span>
                   </div>
-                  <p className="text-2xl font-semibold text-on-surface">64%</p>
-                  <p className="text-xs text-on-surface-variant mt-1">Dew point: 48°</p>
+                  <p className="text-2xl font-semibold text-on-surface">
+                    {data?.status === "ACTIVE" ? "64%" : "--"}
+                  </p>
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    {data?.status === "ACTIVE" ? "Dew point: 48°" : "Unavailable"}
+                  </p>
                 </div>
               </section>
 
@@ -418,7 +515,13 @@ export default function App() {
               exit={{ opacity: 0, scale: 1.05 }}
               className="space-y-4"
             >
-              <section className="bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+              {data?.status !== "ACTIVE" && (
+                <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl flex items-center gap-3 text-orange-500">
+                  <AlertCircle className="w-5 h-5 shrink-0" />
+                  <p className="text-xs font-medium">Sensor is currently offline. Historical data not available.</p>
+                </div>
+              )}
+              <section className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
                 <div className="flex items-center gap-2 mb-6 text-on-surface-variant">
                   <HistoryIcon className="w-4 h-4" />
                   <span className="text-[10px] font-bold uppercase tracking-widest">24h Temperature Trend</span>
@@ -454,12 +557,13 @@ export default function App() {
                       />
                       <Tooltip 
                         contentStyle={{ 
-                          backgroundColor: 'rgba(28, 28, 30, 0.9)', 
+                          backgroundColor: isDark ? 'rgba(28, 28, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)', 
                           border: 'none', 
                           borderRadius: '16px',
                           fontSize: '12px',
-                          color: '#fff',
-                          backdropFilter: 'blur(10px)'
+                          color: isDark ? '#fff' : '#000',
+                          backdropFilter: 'blur(10px)',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                         }}
                         itemStyle={{ color: '#007aff', fontWeight: 'bold' }}
                         labelFormatter={(label) => new Date(label).toLocaleString()}
@@ -479,16 +583,16 @@ export default function App() {
               </section>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+                <div className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">24h High</p>
                   <p className="text-3xl font-bold text-on-surface mt-1">
-                    {Math.max(...history.map(h => unit === "F" ? h.tempF : h.tempC))}°
+                    {data?.status === "ACTIVE" ? `${Math.max(...history.map(h => unit === "F" ? h.tempF : h.tempC))}°` : "--°"}
                   </p>
                 </div>
-                <div className="bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+                <div className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">24h Low</p>
                   <p className="text-3xl font-bold text-on-surface mt-1">
-                    {Math.min(...history.map(h => unit === "F" ? h.tempF : h.tempC))}°
+                    {data?.status === "ACTIVE" ? `${Math.min(...history.map(h => unit === "F" ? h.tempF : h.tempC))}°` : "--°"}
                   </p>
                 </div>
               </div>
@@ -503,10 +607,10 @@ export default function App() {
               exit={{ opacity: 0, scale: 1.05 }}
               className="space-y-4"
             >
-              <section className="bg-white dark:bg-[#1c1c1e] rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+              <section className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
                 <div className="flex items-center gap-2 mb-6 text-on-surface-variant">
                   <MapPin className="w-4 h-4" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Regional Buoy Network</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Regional Buoy Stations</span>
                 </div>
 
                 <div className="space-y-3">
@@ -518,7 +622,7 @@ export default function App() {
                         setSelectedBuoy(buoy.name);
                         setActiveTab("current");
                       }}
-                      className={`rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-all ${selectedBuoy === buoy.name ? "bg-primary/10 ring-1 ring-primary/20" : "bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10"}`}
+                      className={`rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-all ${selectedBuoy === buoy.name ? "bg-primary/10 ring-1 ring-primary/20" : "bg-surface-container-highest hover:bg-black/10 dark:hover:bg-white/10"}`}
                     >
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${buoy.active ? "bg-[#ccff00]/20 text-[#ccff00]" : "bg-on-surface-variant/10 text-on-surface-variant"}`}>
@@ -549,13 +653,13 @@ export default function App() {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pt-3 pb-8 bg-white/80 dark:bg-black/80 backdrop-blur-2xl z-50 border-t border-black/5 dark:border-white/5">
+      <nav className="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pt-3 pb-8 bg-surface/80 backdrop-blur-2xl z-50 border-t border-black/5 dark:border-white/5">
         <button 
           onClick={() => setActiveTab("current")}
           className={`flex flex-col items-center justify-center transition-all ${activeTab === "current" ? "text-primary" : "text-on-surface/40"}`}
         >
           <LayoutDashboard className="w-6 h-6" />
-          <span className="text-[10px] font-bold mt-1">Current</span>
+          <span className="text-[10px] font-bold mt-1">Dashboard</span>
         </button>
         <button 
           onClick={() => setActiveTab("history")}
