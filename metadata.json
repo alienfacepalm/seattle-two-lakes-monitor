@@ -1,0 +1,5 @@
+{
+  "name": "Seattle Two Lakes Monitor",
+  "description": "Live buoy monitoring for Lake Washington and Lake Sammamish.",
+  "requestFramePermissions": []
+}

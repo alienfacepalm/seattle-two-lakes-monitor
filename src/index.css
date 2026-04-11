@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@700;900&family=Inter:wght@400;500;600&family=Space_Grotesk:wght@500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-label: "Space Grotesk", ui-monospace, SFMono-Regular, monospace;
+
+  --color-primary: #001e40;
+  --color-primary-container: #003366;
+  --color-secondary: #3b6a01;
+  --color-tertiary: #311800;
+  --color-tertiary-container: #4f2a00;
+  --color-on-tertiary-container: #db882e;
+  --color-surface: #fbf9f9;
+  --color-surface-container-low: #f5f3f3;
+  --color-surface-container-highest: #e3e2e2;
+  --color-on-surface: #1b1c1c;
+  --color-on-surface-variant: #43474f;
+}
+
+@layer base {
+  :root {
+    --color-primary: #001e40;
+    --color-primary-container: #003366;
+    --color-surface: #fbf9f9;
+    --color-surface-container-low: #f5f3f3;
+    --color-surface-container-highest: #e3e2e2;
+    --color-on-surface: #1b1c1c;
+    --color-on-surface-variant: #43474f;
+  }
+
+  .dark {
+    --color-primary: #a7c8ff;
+    --color-primary-container: #004a77;
+    --color-surface: #111318;
+    --color-surface-container-low: #1a1c22;
+    --color-surface-container-highest: #33353a;
+    --color-on-surface: #e2e2e6;
+    --color-on-surface-variant: #c3c6cf;
+    
+    /* Override theme colors for dark mode */
+    --color-tertiary-container: #3d2a00;
+    --color-on-tertiary-container: #ffb870;
+  }
+
+  body {
+    @apply bg-surface text-on-surface font-body antialiased transition-colors duration-300;
+  }
+}
+
+.hero-gradient {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-container) 100%);
+}
+
+.glass-panel {
+  background: rgba(251, 249, 249, 0.8);
+  backdrop-filter: blur(20px);
+}
