@@ -92,6 +92,55 @@ interface HistoryPoint {
 
 type Tab = "current" | "history" | "map";
 
+const getConditionIcon = (condition: string) => {
+  if (condition === "Warm") return <ThermometerSun className="w-12 h-12 text-yellow-400" />;
+  if (condition === "Moderate") return <Sun className="w-12 h-12 text-orange-400" />;
+  if (condition === "Cold") return <ThermometerSnowflake className="w-12 h-12 text-blue-400" />;
+  if (condition === "Cloudy") return <Cloud className="w-12 h-12 text-gray-400" />;
+  if (condition === "Overcast") return <CloudyIcon className="w-12 h-12 text-slate-500" opacity={0.8} />;
+  if (condition === "Windy") return <Wind className="w-12 h-12 text-blue-300" />;
+  if (condition === "Rainy") return <CloudRain className="w-12 h-12 text-blue-500" />;
+  if (condition === "Showers") return <CloudDrizzle className="w-12 h-12 text-blue-400 opacity-80" />;
+  // Generic icon for Unknown or Offline
+  return <Waves className="w-12 h-12 text-on-surface-variant opacity-40" />;
+};
+
+const getBuoyBackground = () => {
+  // Guaranteed working high-quality Mt Rainier over lake
+  return "https://images.unsplash.com/photo-1439066615861-d1af74d74000?auto=format&fit=crop&w=1200&q=80";
+};
+
+const IconGallery = () => {
+  const conditions = ["Warm", "Moderate", "Cold", "Cloudy", "Overcast", "Windy", "Rainy", "Showers", "Unknown"];
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      className="space-y-6"
+    >
+      <div className="bg-surface-container-low rounded-[2rem] p-8 shadow-sm border border-black/5 dark:border-white/5">
+        <h2 className="text-2xl font-black text-on-surface mb-2 font-headline uppercase tracking-tight">Condition Icons</h2>
+        <p className="text-sm text-on-surface-variant opacity-70 mb-8">A gallery of all possible weather condition icons used in the app.</p>
+        
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {conditions.map(c => (
+            <div key={c} className="bg-surface-container-highest/50 rounded-2xl p-6 flex flex-col items-center gap-4 border border-black/5 dark:border-white/5">
+              <div className="w-20 h-20 rounded-full bg-surface flex items-center justify-center shadow-inner">
+                {getConditionIcon(c)}
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-bold text-on-surface">{c}</p>
+                <p className="text-[9px] font-black text-on-surface-variant uppercase tracking-[0.2em] mt-1 opacity-60">Icon Preview</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 export default function App() {
   const [data, setData] = useState<BuoyData | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
@@ -357,18 +406,6 @@ export default function App() {
   const suitability = data ? getSwimSuitability(data.tempC) : null;
   const seasonal = getSeasonalComparison();
 
-  const getConditionIcon = (condition: string) => {
-    if (condition === "Warm") return <ThermometerSun className="w-12 h-12 text-yellow-400" />;
-    if (condition === "Moderate") return <Sun className="w-12 h-12 text-orange-400" />;
-    if (condition === "Cold") return <ThermometerSnowflake className="w-12 h-12 text-blue-400" />;
-    if (condition === "Cloudy") return <Cloud className="w-12 h-12 text-gray-400" />;
-    if (condition === "Overcast") return <CloudyIcon className="w-12 h-12 text-slate-500" opacity={0.8} />;
-    if (condition === "Windy") return <Wind className="w-12 h-12 text-blue-300" />;
-    if (condition === "Rainy") return <CloudRain className="w-12 h-12 text-blue-500" />;
-    if (condition === "Showers") return <CloudDrizzle className="w-12 h-12 text-blue-400 opacity-80" />;
-    return <Waves className="w-12 h-12 text-blue-400" />;
-  };
-
   return (
     <div className="min-h-screen pb-32 transition-colors duration-300 bg-surface">
       {/* Lake Background */}
@@ -510,9 +547,9 @@ export default function App() {
                 {/* Main Weather Card */}
                 <section className="relative overflow-hidden bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
                   <img 
-                    src="https://images.unsplash.com/photo-1439066615861-d1af74d74000?auto=format&fit=crop&w=1200&q=80"
-                    alt="Lake Background"
-                    className="absolute inset-0 w-full h-full object-cover opacity-[0.25] dark:opacity-[0.35] pointer-events-none select-none"
+                    src={getBuoyBackground()}
+                    alt={`${data?.location || 'Lake'} Background`}
+                    className="absolute inset-0 w-full h-full object-cover opacity-[0.4] dark:opacity-[0.5] pointer-events-none select-none"
                     referrerPolicy="no-referrer"
                   />
                   <div className="relative z-10">
@@ -945,7 +982,7 @@ export default function App() {
               </motion.div>
             } />
             <Route path="/network" element={
-              <motion.div
+              <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 1.05 }}
@@ -966,9 +1003,9 @@ export default function App() {
                           setSelectedBuoy(buoy.name);
                           navigate("/");
                         }}
-                        className={`rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-all ${selectedBuoy === buoy.name ? "bg-primary/10 ring-1 ring-primary/20" : "bg-surface-container-highest hover:bg-black/10 dark:hover:bg-white/10"}`}
+                        className={`relative rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-all overflow-hidden ${selectedBuoy === buoy.name ? "bg-primary/10 ring-1 ring-primary/20" : "bg-surface-container-highest hover:bg-black/10 dark:hover:bg-white/10"}`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="relative z-10 flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${buoy.active ? "bg-[#ccff00]/20 text-[#ccff00]" : "bg-on-surface-variant/10 text-on-surface-variant"}`}>
                             <MapPin className="w-4 h-4" />
                           </div>
@@ -993,6 +1030,7 @@ export default function App() {
                 </section>
               </motion.div>
             } />
+            <Route path="/icons" element={<IconGallery />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AnimatePresence>

@@ -33,47 +33,51 @@ async function startServer() {
       const buoys = text.split("^").filter(line => line.trim() !== "");
       const buoyLine = buoys.find(line => line.toLowerCase().includes(searchName));
       if (!buoyLine) throw new Error(`${targetBuoy} buoy data not found`);
+      
       const parts = buoyLine.split("|").map(p => p.trim());
+      // Find the name index more robustly - it's usually the first non-empty part
       const nameIndex = parts.findIndex(p => p.toLowerCase().includes(searchName));
-      const tempC = parseFloat(parts[nameIndex + 5]);
-      if (isNaN(tempC)) throw new Error(`Invalid temperature data`);
-      const tempF = (tempC * 9/5) + 32;
+      
+      if (nameIndex === -1) throw new Error(`Could not locate ${targetBuoy} in data line`);
+
+      const rawTempC = parts[nameIndex + 5];
+      const tempC = parseFloat(rawTempC);
+      const isActive = parts[nameIndex + 9] === "Y" && !isNaN(tempC);
+      
+      const tempF = isNaN(tempC) ? null : (tempC * 9/5) + 32;
       
       const airTempC = parseFloat(parts[nameIndex + 2]);
       const windSpeed = parseFloat(parts[nameIndex + 3]);
-      // Some buoys have more data, let's try to find precipitation if it exists
-      // Index 4 is often wind direction, index 10+ might have more
-      const precipitation = parseFloat(parts[nameIndex + 10]); // Potential index for rain
-      const humidity = parseFloat(parts[nameIndex + 11]); // Potential index for humidity
+      const precipitation = parseFloat(parts[nameIndex + 10]);
+      const humidity = parseFloat(parts[nameIndex + 11]);
 
       // Parse both timestamps and pick the most recent one
       const ts1 = parts[nameIndex + 1];
       const ts2 = parts[nameIndex + 6];
-      let bestTimestamp = ts1;
+      let bestTimestamp = ts1 || ts2 || new Date().toISOString();
       try {
-        const d1 = new Date(ts1).getTime();
-        const d2 = new Date(ts2).getTime();
+        const d1 = ts1 ? new Date(ts1).getTime() : NaN;
+        const d2 = ts2 ? new Date(ts2).getTime() : NaN;
         if (!isNaN(d2) && (isNaN(d1) || d2 > d1)) {
           bestTimestamp = ts2;
         }
       } catch (e) {
-        // Fallback to ts1
+        // Fallback to ts1 or current
       }
 
-      // Determine condition based on temp, wind, and potential rain
-      let condition = "Moderate";
-      if (!isNaN(precipitation) && precipitation > 0) {
-        condition = precipitation > 0.1 ? "Rainy" : "Showers";
-      } else if (tempC > 22) {
-        condition = "Warm";
-      } else if (tempC < 12) {
-        condition = "Cold";
-      } else if (windSpeed > 15) {
-        condition = "Windy";
-      } else if (tempC < 18 && windSpeed < 5) {
-        condition = "Overcast";
-      } else if (tempC < 18) {
-        condition = "Cloudy";
+      // Determine condition
+      let condition = "Unknown";
+      if (isActive) {
+        condition = "Moderate";
+        if (!isNaN(precipitation) && precipitation > 0) {
+          condition = precipitation > 0.1 ? "Rainy" : "Showers";
+        } else if (!isNaN(tempC)) {
+          if (tempC > 22) condition = "Warm";
+          else if (tempC < 12) condition = "Cold";
+          else if (windSpeed > 15) condition = "Windy";
+          else if (tempC < 18 && windSpeed < 5) condition = "Overcast";
+          else if (tempC < 18) condition = "Cloudy";
+        }
       }
 
       let locationName = parts[nameIndex];
@@ -82,15 +86,15 @@ async function startServer() {
 
       const data = {
         location: `${locationName} Buoy`,
-        tempC: parseFloat(tempC.toFixed(2)),
-        tempF: Math.round(tempF),
+        tempC: isNaN(tempC) ? null : parseFloat(tempC.toFixed(2)),
+        tempF: tempF === null ? null : Math.round(tempF),
         airTempC: isNaN(airTempC) ? null : parseFloat(airTempC.toFixed(2)),
         airTempF: isNaN(airTempC) ? null : Math.round((airTempC * 9/5) + 32),
         windSpeed: isNaN(windSpeed) ? null : parseFloat(windSpeed.toFixed(1)),
         precipitation: isNaN(precipitation) ? 0 : parseFloat(precipitation.toFixed(2)),
         humidity: isNaN(humidity) ? null : parseFloat(humidity.toFixed(1)),
         timestamp: bestTimestamp, 
-        status: parts[nameIndex + 9] === "Y" ? "ACTIVE" : "INACTIVE",
+        status: isActive ? "ACTIVE" : "INACTIVE",
         condition,
         lastSync: new Date().toISOString()
       };
@@ -113,7 +117,7 @@ async function startServer() {
         humidity: 78,
         timestamp: new Date().toISOString(),
         status: "OFFLINE",
-        condition: "Overcast",
+        condition: "Unknown",
         lastSync: new Date().toISOString(),
         isFallback: true
       };
@@ -189,7 +193,9 @@ async function startServer() {
       
       const parts = buoyLine.split("|").map(p => p.trim());
       const nameIndex = parts.findIndex(p => p.toLowerCase().includes(searchName));
-      const currentTempC = parseFloat(parts[nameIndex + 5]);
+      
+      const rawTempC = parts[nameIndex + 5];
+      const currentTempC = isNaN(parseFloat(rawTempC)) ? 14.0 : parseFloat(rawTempC);
       const currentAirTempC = parseFloat(parts[nameIndex + 2]);
       const currentWindSpeed = parseFloat(parts[nameIndex + 3]);
 
