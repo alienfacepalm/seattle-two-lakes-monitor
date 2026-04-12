@@ -779,7 +779,17 @@ export default function App() {
 
                 <div className="bg-surface-container-low rounded-[2rem] p-8 shadow-sm border border-black/5 dark:border-white/5">
                   <h2 className="text-2xl font-black text-on-surface mb-2 font-headline uppercase tracking-tight">24h History</h2>
-                  <p className="text-sm text-on-surface-variant opacity-70 mb-8">Detailed trends and historical data for the {selectedBuoy} buoy.</p>
+                  <div className="space-y-4 mb-8">
+                    <p className="text-sm text-on-surface-variant opacity-70">
+                      Detailed trends and historical data for the {selectedBuoy} buoy.
+                    </p>
+                    <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 flex items-start gap-3">
+                      <div className="mt-0.5"><Database className="w-4 h-4 text-primary" /></div>
+                      <p className="text-[11px] leading-relaxed text-on-surface-variant font-medium">
+                        <span className="text-primary font-bold">Real-Time Collection:</span> This history is built dynamically. Our server monitors the buoy 24/7, capturing snapshots every hour to create a continuous record of lake conditions.
+                      </p>
+                    </div>
+                  </div>
                   
                   {history.length >= 2 ? (
                     <div className="space-y-6">
