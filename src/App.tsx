@@ -28,7 +28,8 @@ import {
   Cloudy as CloudyIcon,
   ChevronDown,
   Check,
-  Share
+  Share,
+  Database
 } from "lucide-react";
 import { 
   XAxis, 
@@ -41,6 +42,22 @@ import {
   BarChart,
   Bar
 } from "recharts";
+import { db, auth } from "./firebase";
+import { 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot, 
+  limit, 
+  getDocs,
+  Timestamp,
+  serverTimestamp,
+  getDocFromServer,
+  doc
+} from "firebase/firestore";
+import { signInAnonymously, onAuthStateChanged, User } from "firebase/auth";
 
 interface BuoyData {
   location: string;
@@ -125,6 +142,57 @@ const IconGallery = () => {
   );
 };
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 export default function App() {
   const [data, setData] = useState<BuoyData | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
@@ -148,6 +216,8 @@ export default function App() {
   const [pendingRefresh, setPendingRefresh] = useState(false);
   const [showOfflineAlert, setShowOfflineAlert] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -160,6 +230,119 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("selectedBuoy", selectedBuoy);
   }, [selectedBuoy]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      if (u) {
+        setUser(u);
+      } else {
+        signInAnonymously(auth).catch(err => {
+          // Silent catch for admin-restricted-operation
+          // We've updated firestore rules to allow unauthenticated writes with strict validation
+          console.warn("Anonymous auth not enabled, proceeding unauthenticated:", err.message);
+        });
+      }
+    });
+
+    // Test connection as per guidelines
+    const testConnection = async () => {
+      try {
+        await getDocFromServer(doc(db, 'test', 'connection'));
+      } catch (error) {
+        if(error instanceof Error && error.message.includes('the client is offline')) {
+          console.error("Please check your Firebase configuration. ");
+        }
+      }
+    };
+    testConnection();
+
+    return () => unsubscribe();
+  }, []);
+
+  // Trigger save when data is ready
+  useEffect(() => {
+    if (data) {
+      saveSnapshot(data);
+    }
+  }, [data]);
+
+  // Sync historical data from Firestore
+  useEffect(() => {
+    if (!selectedBuoy) return;
+
+    // Removed orderBy to avoid requiring a composite index in Firestore
+    const q = query(
+      collection(db, "buoy_snapshots"),
+      where("buoyId", "==", selectedBuoy)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const historyData: HistoryPoint[] = snapshot.docs
+        .map(doc => {
+          const d = doc.data();
+          return {
+            time: d.timestamp,
+            tempC: d.tempC,
+            tempF: d.tempF,
+            airTempC: d.airTempC,
+            airTempF: d.airTempF,
+            windSpeed: d.windSpeed,
+            precipitation: d.precipitation,
+            humidity: d.humidity
+          };
+        })
+        .filter(p => p.time && !isNaN(new Date(p.time).getTime())) // Filter out invalid points
+        .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+        .slice(-48); // Keep last 48 points
+      
+      setHistory(historyData);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, "buoy_snapshots");
+    });
+
+    return () => unsubscribe();
+  }, [selectedBuoy]);
+
+  const saveSnapshot = useCallback(async (buoyData: BuoyData) => {
+    if (!buoyData.timestamp) return;
+
+    try {
+      setIsSyncing(true);
+      
+      // Normalize timestamp to ISO format for consistent sorting and rule validation
+      const normalizedTimestamp = new Date(buoyData.timestamp).toISOString();
+      
+      // Check if this snapshot already exists to avoid duplicates
+      const q = query(
+        collection(db, "buoy_snapshots"),
+        where("buoyId", "==", selectedBuoy),
+        where("timestamp", "==", normalizedTimestamp),
+        limit(1)
+      );
+      
+      const existing = await getDocs(q);
+      if (existing.empty) {
+        await addDoc(collection(db, "buoy_snapshots"), {
+          buoyId: selectedBuoy,
+          timestamp: normalizedTimestamp,
+          recordedAt: new Date().toISOString(),
+          tempC: buoyData.tempC,
+          tempF: buoyData.tempF,
+          airTempC: buoyData.airTempC,
+          airTempF: buoyData.airTempF,
+          windSpeed: buoyData.windSpeed,
+          precipitation: buoyData.precipitation,
+          humidity: buoyData.humidity,
+          serverTime: serverTimestamp()
+        });
+        console.log("Snapshot saved to Firestore:", normalizedTimestamp);
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, "buoy_snapshots");
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [user, selectedBuoy]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -246,17 +429,14 @@ export default function App() {
     setRefreshing(true);
     setError(null);
     try {
-      const [currentRes, historyRes, mapRes] = await Promise.all([
+      const [currentRes, mapRes] = await Promise.all([
         fetch(`/api/buoy-data?buoy=${selectedBuoy}&t=${Date.now()}`, { cache: 'no-store' }),
-        fetch(`/api/buoy-history?buoy=${selectedBuoy}&t=${Date.now()}`, { cache: 'no-store' }),
         fetch(`/api/all-buoys?t=${Date.now()}`, { cache: 'no-store' })
       ]);
       if (!currentRes.ok) throw new Error(`Server error: ${currentRes.status}`);
       const currentResult = await currentRes.json();
-      const historyResult = await historyRes.json().catch(() => []);
       const mapResult = await mapRes.json().catch(() => []);
       setData(currentResult);
-      setHistory(historyResult);
       setAllBuoys(mapResult);
       setLastFetchTime(new Date());
     } catch (error) {
@@ -423,7 +603,10 @@ export default function App() {
                         </div>
                         <div className="text-right group cursor-default">
                           <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface-variant opacity-70 group-hover:opacity-100 group-hover:text-on-surface transition-all duration-300">Updated {new Date(data?.timestamp || "").toLocaleDateString()} at {new Date(data?.timestamp || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                          <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface-variant opacity-50 group-hover:opacity-90 transition-all duration-300">Checked {lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {isSyncing && <Database className="w-2.5 h-2.5 text-primary animate-pulse" />}
+                            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface-variant opacity-50 group-hover:opacity-90 transition-all duration-300">Checked {lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -541,7 +724,7 @@ export default function App() {
                     {/* Humidity */}
                     <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
                       <div className="flex items-center gap-2 text-on-surface-variant mb-6">
-                        <CloudRain className="w-4 h-4" />
+                        <Droplets className="w-4 h-4" />
                         <span className="text-[10px] font-bold uppercase tracking-widest">Humidity</span>
                       </div>
                       <div className="flex flex-col items-center">
@@ -598,7 +781,7 @@ export default function App() {
                   <h2 className="text-2xl font-black text-on-surface mb-2 font-headline uppercase tracking-tight">24h History</h2>
                   <p className="text-sm text-on-surface-variant opacity-70 mb-8">Detailed trends and historical data for the {selectedBuoy} buoy.</p>
                   
-                  {history.length > 0 ? (
+                  {history.length >= 2 ? (
                     <div className="space-y-6">
                     {/* Temperature Trend */}
                     <section className="bg-surface-container-highest/30 rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
@@ -702,10 +885,10 @@ export default function App() {
                     </section>
                   </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-20 bg-surface-container-highest/10 rounded-[2rem] border border-dashed border-on-surface-variant/20">
-                      <AlertCircle className="w-12 h-12 text-on-surface-variant opacity-20 mb-4" />
-                      <p className="text-on-surface-variant font-medium opacity-60">No historical data available for this buoy.</p>
-                      <p className="text-[10px] uppercase tracking-widest text-on-surface-variant opacity-40 mt-2">Sensor may be offline or inactive</p>
+                    <div className="flex flex-col items-center justify-center py-20 bg-surface-container-highest/10 rounded-[2rem] border border-dashed border-on-surface-variant/20 text-center px-6">
+                      <Database className="w-12 h-12 text-primary opacity-20 mb-4" />
+                      <p className="text-on-surface-variant font-medium opacity-60">Building historical record...</p>
+                      <p className="text-[10px] uppercase tracking-widest text-on-surface-variant opacity-40 mt-2 max-w-[200px]">Data is now being collected in real-time and synced across all devices.</p>
                     </div>
                   )}
                 </div>
@@ -769,6 +952,13 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Beta Label */}
+      <div className="fixed bottom-24 left-4 z-[60] pointer-events-none">
+        <div className="bg-primary/10 backdrop-blur-md border border-primary/20 px-3 py-1 rounded-full">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Beta</span>
+        </div>
+      </div>
     </div>
   );
 }

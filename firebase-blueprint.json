@@ -1,0 +1,28 @@
+{
+  "entities": {
+    "BuoySnapshot": {
+      "title": "Buoy Snapshot",
+      "description": "A record of buoy conditions at a specific point in time.",
+      "type": "object",
+      "properties": {
+        "buoyId": { "type": "string", "description": "The unique identifier for the buoy (e.g., 'Sammamish')" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "The time the data was recorded by the sensor" },
+        "recordedAt": { "type": "string", "format": "date-time", "description": "The time the snapshot was saved to our database" },
+        "tempC": { "type": "number" },
+        "tempF": { "type": "number" },
+        "airTempC": { "type": "number" },
+        "airTempF": { "type": "number" },
+        "windSpeed": { "type": "number" },
+        "precipitation": { "type": "number" },
+        "humidity": { "type": "number" }
+      },
+      "required": ["buoyId", "timestamp", "recordedAt"]
+    }
+  },
+  "firestore": {
+    "/buoy_snapshots/{snapshotId}": {
+      "schema": "BuoySnapshot",
+      "description": "Collection of historical buoy data snapshots."
+    }
+  }
+}

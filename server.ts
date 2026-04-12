@@ -3,9 +3,89 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc, query, where, getDocs, limit } from "firebase/firestore";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Initialize Firebase for background sync
+const firebaseConfigPath = path.join(process.cwd(), "firebase-applet-config.json");
+let db: any = null;
+
+if (fs.existsSync(firebaseConfigPath)) {
+  try {
+    const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf8"));
+    const firebaseApp = initializeApp(firebaseConfig);
+    db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+    console.log("[Firebase] Background sync initialized");
+  } catch (err) {
+    console.error("[Firebase] Failed to initialize background sync:", err);
+  }
+}
+
+async function performBackgroundSync() {
+  if (!db) {
+    console.log("[Background Sync] Skipped: Firebase not initialized");
+    return;
+  }
+  console.log("[Background Sync] Starting fetch at", new Date().toISOString());
+  const buoys = ["Lake Sammamish", "Lake Washington"];
+  
+  for (const buoyName of buoys) {
+    try {
+      const searchName = buoyName.toLowerCase().replace("lake ", "");
+      const response = await fetch("https://green2.kingcounty.gov/lake-buoy/GenerateMapData.aspx", {
+        headers: { "Cache-Control": "no-cache" }
+      });
+      const text = await response.text();
+      const lines = text.split("^").filter(line => line.trim() !== "");
+      const buoyLine = lines.find(line => line.toLowerCase().includes(searchName));
+      
+      if (!buoyLine) continue;
+      
+      const parts = buoyLine.split("|").map(p => p.trim());
+      const nameIndex = parts.findIndex(p => p.toLowerCase().includes(searchName));
+      
+      const rawTempC = parts[nameIndex + 5];
+      const tempC = parseFloat(rawTempC);
+      if (isNaN(tempC)) continue;
+      
+      const ts1 = parts[nameIndex + 1];
+      const ts2 = parts[nameIndex + 6];
+      let bestTimestamp = ts1 || ts2 || new Date().toISOString();
+      const normalizedTimestamp = new Date(bestTimestamp).toISOString();
+
+      // Check existence to avoid duplicates
+      const q = query(
+        collection(db, "buoy_snapshots"),
+        where("buoyId", "==", buoyName),
+        where("timestamp", "==", normalizedTimestamp),
+        limit(1)
+      );
+      
+      const existing = await getDocs(q);
+      if (existing.empty) {
+        await addDoc(collection(db, "buoy_snapshots"), {
+          buoyId: buoyName,
+          timestamp: normalizedTimestamp,
+          recordedAt: new Date().toISOString(),
+          tempC: tempC,
+          tempF: Math.round((tempC * 9/5) + 32),
+          airTempC: parseFloat(parts[nameIndex + 2]),
+          airTempF: Math.round((parseFloat(parts[nameIndex + 2]) * 9/5) + 32),
+          windSpeed: parseFloat(parts[nameIndex + 3]),
+          precipitation: parseFloat(parts[nameIndex + 10]) || 0,
+          humidity: parseFloat(parts[nameIndex + 11])
+        });
+        console.log(`[Background Sync] Saved ${buoyName} for ${normalizedTimestamp}`);
+      }
+    } catch (err) {
+      console.error(`[Background Sync] Error for ${buoyName}:`, err);
+    }
+  }
+}
 
 async function startServer() {
   const app = express();
@@ -204,66 +284,12 @@ async function startServer() {
       const currentTempC = isNaN(parseFloat(rawTempC)) ? 14.0 : parseFloat(rawTempC);
       const currentAirTempC = parseFloat(parts[nameIndex + 2]);
       const currentWindSpeed = parseFloat(parts[nameIndex + 3]);
-      const currentHumidity = parseFloat(parts[nameIndex + 11]);
-
-      // Generate 24 hours of data points
-      const history = [];
-      const now = new Date();
-      for (let i = 24; i >= 0; i--) {
-        const time = new Date(now.getTime() - i * 60 * 60 * 1000);
-        // Simulate a daily cycle: cooler at night, warmer in day
-        const hour = time.getHours();
-        const cycle = Math.sin((hour - 6) * Math.PI / 12); // Peak at 6pm, low at 6am
-        
-        const waterVariance = (Math.random() - 0.5) * 0.3;
-        const waterTempC = currentTempC + (cycle * 1.2) + waterVariance;
-        
-        const airVariance = (Math.random() - 0.5) * 2.0;
-        const airTempC = (isNaN(currentAirTempC) ? currentTempC - 2 : currentAirTempC) + (cycle * 4.0) + airVariance;
-
-        const windVariance = (Math.random() - 0.5) * 5.0;
-        const windSpeed = Math.max(0, (isNaN(currentWindSpeed) ? 5 : currentWindSpeed) + windVariance);
-
-        const humidityVariance = (Math.random() - 0.5) * 10.0;
-        const humidity = Math.min(100, Math.max(0, (isNaN(currentHumidity) ? 65 : currentHumidity) + (cycle * -10.0) + humidityVariance));
-        
-        // Simple heuristic for historical rain chance
-        const isLikelyRainy = (isNaN(currentAirTempC) ? 12 : currentAirTempC) < 15 && Math.random() > 0.6;
-        const rainChance = isLikelyRainy ? 0.4 : 0.1;
-        const precipitation = Math.random() < rainChance ? Math.random() * 0.2 : 0;
-
-        history.push({
-          time: time.toISOString(),
-          tempC: parseFloat(waterTempC.toFixed(2)),
-          tempF: Math.round((waterTempC * 9/5) + 32),
-          airTempC: parseFloat(airTempC.toFixed(2)),
-          airTempF: Math.round((airTempC * 9/5) + 32),
-          windSpeed: parseFloat(windSpeed.toFixed(1)),
-          precipitation: parseFloat(precipitation.toFixed(2)),
-          humidity: Math.round(humidity)
-        });
-      }
-
-      res.json(history);
+      // Real historical data is not available from the current API endpoint.
+      // Returning empty array to comply with "only use real data" requirement.
+      res.json([]);
     } catch (error) {
       console.error("Error generating history:", error);
-      // Fallback history
-      const history = [];
-      const now = new Date();
-      for (let i = 24; i >= 0; i--) {
-        const time = new Date(now.getTime() - i * 60 * 60 * 1000);
-        history.push({
-          time: time.toISOString(),
-          tempC: 14 + Math.sin(i),
-          tempF: Math.round((14 + Math.sin(i)) * 9/5 + 32),
-          airTempC: 12 + Math.sin(i) * 2,
-          airTempF: Math.round((12 + Math.sin(i) * 2) * 9/5 + 32),
-          windSpeed: 4 + Math.random() * 4,
-          humidity: 60 + Math.random() * 20,
-          precipitation: 0
-        });
-      }
-      res.json(history);
+      res.json([]);
     }
   });
 
@@ -283,6 +309,13 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    
+    // Start background sync every hour
+    if (db) {
+      setInterval(performBackgroundSync, 60 * 60 * 1000);
+      // Run initial sync after a short delay to let server settle
+      setTimeout(performBackgroundSync, 5000);
+    }
   });
 }
 
