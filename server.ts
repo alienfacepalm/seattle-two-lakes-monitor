@@ -25,6 +25,12 @@ if (fs.existsSync(firebaseConfigPath)) {
   }
 }
 
+let syncStats = {
+  lastSync: "Never",
+  pointsSaved: 0,
+  errors: 0
+};
+
 async function performBackgroundSync() {
   if (!db) {
     console.log("[Background Sync] Skipped: Firebase not initialized");
@@ -80,9 +86,12 @@ async function performBackgroundSync() {
           humidity: parseFloat(parts[nameIndex + 11])
         });
         console.log(`[Background Sync] Saved ${buoyName} for ${normalizedTimestamp}`);
+        syncStats.pointsSaved++;
       }
+      syncStats.lastSync = new Date().toISOString();
     } catch (err) {
       console.error(`[Background Sync] Error for ${buoyName}:`, err);
+      syncStats.errors++;
     }
   }
 }
@@ -93,7 +102,11 @@ async function startServer() {
 
   // Health check route
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+    res.json({ 
+      status: "ok", 
+      timestamp: new Date().toISOString(),
+      sync: syncStats
+    });
   });
 
   // API Route to fetch buoy data

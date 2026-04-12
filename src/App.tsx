@@ -886,9 +886,22 @@ export default function App() {
                   </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-20 bg-surface-container-highest/10 rounded-[2rem] border border-dashed border-on-surface-variant/20 text-center px-6">
-                      <Database className="w-12 h-12 text-primary opacity-20 mb-4" />
-                      <p className="text-on-surface-variant font-medium opacity-60">Building historical record...</p>
-                      <p className="text-[10px] uppercase tracking-widest text-on-surface-variant opacity-40 mt-2 max-w-[200px]">Data is now being collected in real-time and synced across all devices.</p>
+                      <div className="relative">
+                        <Database className="w-12 h-12 text-primary opacity-20 mb-4" />
+                        {history.length > 0 && (
+                          <div className="absolute -top-1 -right-1 bg-primary text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center animate-bounce shadow-lg">
+                            {history.length}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-on-surface-variant font-medium opacity-60">
+                        {history.length === 0 ? "Building historical record..." : "Almost ready..."}
+                      </p>
+                      <p className="text-[10px] uppercase tracking-widest text-on-surface-variant opacity-40 mt-2 max-w-[200px]">
+                        {history.length === 0 
+                          ? "Data is now being collected in real-time and synced across all devices."
+                          : `Collected ${history.length} of 2 points needed to draw trend lines. Refreshing data...`}
+                      </p>
                     </div>
                   )}
                 </div>
