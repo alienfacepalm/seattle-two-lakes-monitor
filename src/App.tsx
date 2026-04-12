@@ -568,7 +568,9 @@ export default function App() {
 
                     <div className="mt-8 flex flex-col items-center">
                       <div className="flex items-center gap-4">
-                        {getConditionIcon(data?.condition || "")}
+                        <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/10 shadow-sm">
+                          {getConditionIcon(data?.condition || "")}
+                        </div>
                         <div className="flex flex-col items-center">
                           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-80">Water Temperature</span>
                           <span className="text-7xl font-light tracking-tighter text-on-surface">
@@ -593,7 +595,7 @@ export default function App() {
 
                     <div className="mt-8 pt-6 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full animate-pulse ${data?.status === "ACTIVE" ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`}></span>
+                        <span className={`w-2 h-2 rounded-full animate-pulse border border-black/10 dark:border-white/10 ${data?.status === "ACTIVE" ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`}></span>
                         <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                           {data?.status === "ACTIVE" ? "Live Buoy" : "Offline Mode"}
                         </span>
@@ -1009,7 +1011,7 @@ export default function App() {
                         className={`relative rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-all overflow-hidden ${selectedBuoy === buoy.name ? "bg-primary/10 ring-1 ring-primary/20" : "bg-surface-container-highest hover:bg-black/10 dark:hover:bg-white/10"}`}
                       >
                         <div className="relative z-10 flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${buoy.active ? "bg-[#ccff00]/20 text-[#ccff00]" : "bg-on-surface-variant/10 text-on-surface-variant"}`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors ${buoy.active ? "bg-[#ccff00]/10 text-[#718800] dark:text-[#ccff00] border-[#718800]/30 dark:border-[#ccff00]/20" : "bg-on-surface-variant/10 text-on-surface-variant border-transparent"}`}>
                             <MapPin className="w-4 h-4" />
                           </div>
                           <div>
@@ -1023,7 +1025,7 @@ export default function App() {
                           <p className="text-lg font-bold text-on-surface">
                             {buoy.tempC ? (unit === "F" ? buoy.tempF : buoy.tempC) : "--"}°
                           </p>
-                          <span className={`text-[8px] font-black uppercase tracking-widest ${buoy.active ? "text-[#ccff00]" : "text-on-surface-variant"}`}>
+                          <span className={`text-[8px] font-black uppercase tracking-widest ${buoy.active ? "text-[#718800] dark:text-[#ccff00]" : "text-on-surface-variant"}`}>
                             {buoy.active ? "Active" : "Offline"}
                           </span>
                         </div>
