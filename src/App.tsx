@@ -12,6 +12,9 @@ import {
   LayoutDashboard,
   Moon,
   Sun,
+  Cloud,
+  CloudRain,
+  Wind,
   AlertCircle,
   ExternalLink,
   Check,
@@ -31,7 +34,10 @@ import {
   Tooltip, 
   ResponsiveContainer,
   AreaChart,
-  Area
+  Area,
+  BarChart,
+  Bar,
+  Legend
 } from "recharts";
 
 interface BuoyData {
@@ -342,6 +348,11 @@ export default function App() {
   const getConditionIcon = (condition: string) => {
     if (condition === "Warm") return <Sun className="w-12 h-12 text-yellow-400" />;
     if (condition === "Moderate") return <Sun className="w-12 h-12 text-orange-400" />;
+    if (condition === "Cloudy") return <Cloud className="w-12 h-12 text-gray-400" />;
+    if (condition === "Overcast") return <Cloud className="w-12 h-12 text-slate-500" opacity={0.8} />;
+    if (condition === "Windy") return <Wind className="w-12 h-12 text-blue-300" />;
+    if (condition === "Rainy") return <CloudRain className="w-12 h-12 text-blue-500" />;
+    if (condition === "Showers") return <CloudRain className="w-12 h-12 text-blue-400 opacity-80" />;
     return <Waves className="w-12 h-12 text-blue-400" />;
   };
 
@@ -661,10 +672,24 @@ export default function App() {
                     <span className="text-[10px] font-bold uppercase tracking-widest">Humidity</span>
                   </div>
                   <p className="text-2xl font-semibold text-on-surface">
-                    {data?.status === "ACTIVE" ? "64%" : "--"}
+                    {data?.status === "ACTIVE" ? (data?.humidity ? `${data.humidity}%` : "64%") : "--"}
                   </p>
                   <p className="text-xs text-on-surface-variant mt-1">
                     {data?.status === "ACTIVE" ? "Dew point: 48°" : "Unavailable"}
+                  </p>
+                </div>
+
+                {/* Precipitation */}
+                <div className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+                  <div className="flex items-center gap-2 mb-4 text-on-surface-variant">
+                    <CloudRain className="w-4 h-4" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Precipitation</span>
+                  </div>
+                  <p className="text-2xl font-semibold text-on-surface">
+                    {data?.status === "ACTIVE" ? `${data?.precipitation || 0}"` : "--"}
+                  </p>
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    Past hour
                   </p>
                 </div>
               </section>
@@ -683,6 +708,53 @@ export default function App() {
               exit={{ opacity: 0, scale: 1.05 }}
               className="space-y-4"
             >
+              {/* Network Selector Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="w-full bg-surface-container-low text-on-surface font-bold py-4 px-6 rounded-2xl border border-black/5 dark:border-white/5 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${allBuoys.find(b => b.name === selectedBuoy)?.active ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`} />
+                    <span>{selectedBuoy} Buoy</span>
+                  </div>
+                  <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                <AnimatePresence>
+                  {isDropdownOpen && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-40" 
+                        onClick={() => setIsDropdownOpen(false)} 
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        className="absolute top-full left-0 right-0 mt-2 z-50 bg-surface-container-low border border-black/5 dark:border-white/5 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl"
+                      >
+                        {allBuoys.map(buoy => (
+                          <button
+                            key={buoy.id}
+                            onClick={() => {
+                              setSelectedBuoy(buoy.name);
+                              setIsDropdownOpen(false);
+                            }}
+                            className={`w-full px-6 py-4 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${selectedBuoy === buoy.name ? "bg-primary/5" : ""}`}
+                          >
+                            <span className={`font-bold ${selectedBuoy === buoy.name ? "text-primary" : "text-on-surface"}`}>
+                              {buoy.name} Buoy
+                            </span>
+                            <div className={`w-2 h-2 rounded-full ${buoy.active ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`} />
+                          </button>
+                        ))}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+
               {data?.status !== "ACTIVE" && (
                 <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl flex items-center gap-3 text-orange-500">
                   <AlertCircle className="w-5 h-5 shrink-0" />
@@ -690,18 +762,34 @@ export default function App() {
                 </div>
               )}
               <section className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
-                <div className="flex items-center gap-2 mb-6 text-on-surface-variant">
-                  <HistoryIcon className="w-4 h-4" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">24h Temperature Trend</span>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2 text-on-surface-variant">
+                    <HistoryIcon className="w-4 h-4" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">24h Temperature Trend</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-primary" />
+                      <span className="text-[9px] font-bold text-on-surface-variant uppercase">Water</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-orange-400" />
+                      <span className="text-[9px] font-bold text-on-surface-variant uppercase">Air</span>
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={history}>
                       <defs>
-                        <linearGradient id="colorTemp" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id="colorWater" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#007aff" stopOpacity={0.3}/>
                           <stop offset="95%" stopColor="#007aff" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorAir" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#fb923c" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#fb923c" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
@@ -733,16 +821,28 @@ export default function App() {
                           backdropFilter: 'blur(10px)',
                           boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                         }}
-                        itemStyle={{ color: '#007aff', fontWeight: 'bold' }}
+                        itemStyle={{ fontWeight: 'bold' }}
                         labelFormatter={(label) => new Date(label).toLocaleString()}
                       />
                       <Area 
                         type="monotone" 
+                        name="Water Temp"
                         dataKey={unit === "F" ? "tempF" : "tempC"} 
                         stroke="#007aff" 
                         strokeWidth={3}
                         fillOpacity={1} 
-                        fill="url(#colorTemp)" 
+                        fill="url(#colorWater)" 
+                        animationDuration={1500}
+                      />
+                      <Area 
+                        type="monotone" 
+                        name="Air Temp"
+                        dataKey={unit === "F" ? "airTempF" : "airTempC"} 
+                        stroke="#fb923c" 
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        fillOpacity={1} 
+                        fill="url(#colorAir)" 
                         animationDuration={1500}
                       />
                     </AreaChart>
@@ -750,18 +850,83 @@ export default function App() {
                 </div>
               </section>
 
+              <section className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+                <div className="flex items-center gap-2 mb-6 text-on-surface-variant">
+                  <CloudRain className="w-4 h-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">24h Precipitation (Inches)</span>
+                </div>
+                
+                <div className="h-40 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={history}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
+                      <XAxis 
+                        dataKey="time" 
+                        tickFormatter={(time) => new Date(time).getHours() + ":00"}
+                        stroke="var(--color-on-surface-variant)"
+                        fontSize={10}
+                        tickLine={false}
+                        axisLine={false}
+                        opacity={0.5}
+                      />
+                      <YAxis 
+                        stroke="var(--color-on-surface-variant)"
+                        fontSize={10}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(val) => `${val}"`}
+                        opacity={0.5}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: isDark ? 'rgba(28, 28, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)', 
+                          border: 'none', 
+                          borderRadius: '16px',
+                          fontSize: '12px',
+                          color: isDark ? '#fff' : '#000',
+                          backdropFilter: 'blur(10px)',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                        }}
+                        itemStyle={{ color: '#3b82f6', fontWeight: 'bold' }}
+                        labelFormatter={(label) => new Date(label).toLocaleString()}
+                      />
+                      <Bar 
+                        dataKey="precipitation" 
+                        fill="#3b82f6" 
+                        radius={[4, 4, 0, 0]}
+                        animationDuration={1500}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </section>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">24h High</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">24h High (Water)</p>
                   <p className="text-3xl font-bold text-on-surface mt-1">
                     {data?.status === "ACTIVE" ? `${Math.max(...history.map(h => unit === "F" ? h.tempF : h.tempC))}°` : "--°"}
                   </p>
                 </div>
                 <div className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">24h Low</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">24h Low (Water)</p>
                   <p className="text-3xl font-bold text-on-surface mt-1">
                     {data?.status === "ACTIVE" ? `${Math.min(...history.map(h => unit === "F" ? h.tempF : h.tempC))}°` : "--°"}
                   </p>
+                </div>
+                <div className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Avg Wind Speed</p>
+                  <p className="text-3xl font-bold text-on-surface mt-1">
+                    {data?.status === "ACTIVE" ? `${(history.reduce((acc, h) => acc + (h.windSpeed || 0), 0) / history.length).toFixed(1)}` : "--"}
+                  </p>
+                  <p className="text-[10px] font-bold text-on-surface-variant uppercase mt-1">MPH</p>
+                </div>
+                <div className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Max Wind Gust</p>
+                  <p className="text-3xl font-bold text-on-surface mt-1">
+                    {data?.status === "ACTIVE" ? `${Math.max(...history.map(h => h.windSpeed || 0)).toFixed(1)}` : "--"}
+                  </p>
+                  <p className="text-[10px] font-bold text-on-surface-variant uppercase mt-1">MPH</p>
                 </div>
               </div>
             </motion.div>

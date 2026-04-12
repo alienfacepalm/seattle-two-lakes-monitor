@@ -39,6 +39,10 @@ async function startServer() {
       
       const airTempC = parseFloat(parts[nameIndex + 2]);
       const windSpeed = parseFloat(parts[nameIndex + 3]);
+      // Some buoys have more data, let's try to find precipitation if it exists
+      // Index 4 is often wind direction, index 10+ might have more
+      const precipitation = parseFloat(parts[nameIndex + 10]); // Potential index for rain
+      const humidity = parseFloat(parts[nameIndex + 11]); // Potential index for humidity
 
       // Parse both timestamps and pick the most recent one
       const ts1 = parts[nameIndex + 1];
@@ -54,6 +58,22 @@ async function startServer() {
         // Fallback to ts1
       }
 
+      // Determine condition based on temp, wind, and potential rain
+      let condition = "Moderate";
+      if (!isNaN(precipitation) && precipitation > 0) {
+        condition = precipitation > 0.1 ? "Rainy" : "Showers";
+      } else if (tempC > 22) {
+        condition = "Warm";
+      } else if (tempC < 12) {
+        condition = "Cold";
+      } else if (windSpeed > 15) {
+        condition = "Windy";
+      } else if (tempC < 18 && windSpeed < 5) {
+        condition = "Overcast";
+      } else if (tempC < 18) {
+        condition = "Cloudy";
+      }
+
       const data = {
         location: `${parts[nameIndex]} Buoy`,
         tempC: parseFloat(tempC.toFixed(2)),
@@ -61,9 +81,11 @@ async function startServer() {
         airTempC: isNaN(airTempC) ? null : parseFloat(airTempC.toFixed(2)),
         airTempF: isNaN(airTempC) ? null : Math.round((airTempC * 9/5) + 32),
         windSpeed: isNaN(windSpeed) ? null : parseFloat(windSpeed.toFixed(1)),
+        precipitation: isNaN(precipitation) ? 0 : parseFloat(precipitation.toFixed(2)),
+        humidity: isNaN(humidity) ? null : parseFloat(humidity.toFixed(1)),
         timestamp: bestTimestamp, 
         status: parts[nameIndex + 9] === "Y" ? "ACTIVE" : "INACTIVE",
-        condition: tempC > 20 ? "Warm" : tempC > 10 ? "Moderate" : "Cold",
+        condition,
         lastSync: new Date().toISOString()
       };
       res.json(data);
@@ -77,9 +99,11 @@ async function startServer() {
         airTempC: 12.0,
         airTempF: 54,
         windSpeed: 5.0,
+        precipitation: 0.05,
+        humidity: 78,
         timestamp: new Date().toISOString(),
         status: "OFFLINE",
-        condition: "Moderate",
+        condition: "Overcast",
         lastSync: new Date().toISOString(),
         isFallback: true
       };
@@ -147,6 +171,8 @@ async function startServer() {
       const parts = buoyLine.split("|").map(p => p.trim());
       const nameIndex = parts.findIndex(p => p.toLowerCase().includes(targetBuoy.toLowerCase()));
       const currentTempC = parseFloat(parts[nameIndex + 5]);
+      const currentAirTempC = parseFloat(parts[nameIndex + 2]);
+      const currentWindSpeed = parseFloat(parts[nameIndex + 3]);
 
       // Generate 24 hours of data points
       const history = [];
@@ -156,13 +182,29 @@ async function startServer() {
         // Simulate a daily cycle: cooler at night, warmer in day
         const hour = time.getHours();
         const cycle = Math.sin((hour - 6) * Math.PI / 12); // Peak at 6pm, low at 6am
-        const variance = (Math.random() - 0.5) * 0.5;
-        const tempC = currentTempC + (cycle * 1.5) + variance;
         
+        const waterVariance = (Math.random() - 0.5) * 0.3;
+        const waterTempC = currentTempC + (cycle * 1.2) + waterVariance;
+        
+        const airVariance = (Math.random() - 0.5) * 2.0;
+        const airTempC = (isNaN(currentAirTempC) ? currentTempC - 2 : currentAirTempC) + (cycle * 4.0) + airVariance;
+
+        const windVariance = (Math.random() - 0.5) * 5.0;
+        const windSpeed = Math.max(0, (isNaN(currentWindSpeed) ? 5 : currentWindSpeed) + windVariance);
+        
+        // Simple heuristic for historical rain chance
+        const isLikelyRainy = (isNaN(currentAirTempC) ? 12 : currentAirTempC) < 15 && Math.random() > 0.6;
+        const rainChance = isLikelyRainy ? 0.4 : 0.1;
+        const precipitation = Math.random() < rainChance ? Math.random() * 0.2 : 0;
+
         history.push({
           time: time.toISOString(),
-          tempC: parseFloat(tempC.toFixed(2)),
-          tempF: Math.round((tempC * 9/5) + 32)
+          tempC: parseFloat(waterTempC.toFixed(2)),
+          tempF: Math.round((waterTempC * 9/5) + 32),
+          airTempC: parseFloat(airTempC.toFixed(2)),
+          airTempF: Math.round((airTempC * 9/5) + 32),
+          windSpeed: parseFloat(windSpeed.toFixed(1)),
+          precipitation: parseFloat(precipitation.toFixed(2))
         });
       }
 
@@ -177,7 +219,10 @@ async function startServer() {
         history.push({
           time: time.toISOString(),
           tempC: 14 + Math.sin(i),
-          tempF: Math.round((14 + Math.sin(i)) * 9/5 + 32)
+          tempF: Math.round((14 + Math.sin(i)) * 9/5 + 32),
+          airTempC: 12 + Math.sin(i) * 2,
+          airTempF: Math.round((12 + Math.sin(i) * 2) * 9/5 + 32),
+          windSpeed: 4 + Math.random() * 4
         });
       }
       res.json(history);
