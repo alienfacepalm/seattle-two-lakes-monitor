@@ -103,6 +103,7 @@ export default function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingRefresh, setPendingRefresh] = useState(false);
   const [showOfflineAlert, setShowOfflineAlert] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -290,12 +291,25 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-        >
-          <RefreshCw className="w-8 h-8 text-primary" />
-        </motion.div>
+        <div className="relative">
+          <motion.div
+            animate={{ 
+              scale: [1, 1.1, 1],
+              opacity: [0.5, 1, 0.5]
+            }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center"
+          >
+            <Mountain className="w-10 h-10 text-primary" />
+          </motion.div>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+            className="absolute -bottom-2 -right-2 w-8 h-8 bg-surface rounded-full flex items-center justify-center shadow-lg border border-black/5 dark:border-white/10"
+          >
+            <Waves className="w-5 h-5 text-primary" />
+          </motion.div>
+        </div>
       </div>
     );
   }
@@ -338,15 +352,22 @@ export default function App() {
       <div className="lake-waves" />
 
       {/* Top App Bar */}
-      <header className="fixed top-0 w-full z-50 bg-surface/70 backdrop-blur-2xl flex items-center justify-between px-6 h-16 border-b border-black/5 dark:border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Mountain className="text-primary w-6 h-6" />
-            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-surface rounded-full flex items-center justify-center">
-              <Waves className="text-primary w-2 h-2" />
+      <header className="fixed top-0 w-full z-50 bg-surface/70 backdrop-blur-2xl flex items-center justify-between px-4 sm:px-6 h-16 border-b border-black/5 dark:border-white/5">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="relative shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Mountain className="text-primary w-6 h-6" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-surface rounded-full flex items-center justify-center shadow-sm border border-black/5 dark:border-white/10">
+              <Waves className="text-primary w-3 h-3" />
             </div>
           </div>
-          <h1 className="text-lg font-bold text-on-surface font-headline tracking-tight">Seattle Two Lakes Monitor</h1>
+          <div className="flex flex-col -space-y-0.5 sm:-space-y-1">
+            <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-primary/70 leading-none">Seattle</span>
+            <h1 className="text-sm sm:text-lg font-black text-on-surface font-headline tracking-tighter uppercase leading-none">
+              2lakes<span className="text-primary">.app</span>
+            </h1>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button 
@@ -416,77 +437,114 @@ export default function App() {
               className="space-y-4"
             >
               {/* Network Selector Dropdown */}
-              <div className="relative group">
-                <select 
-                  value={selectedBuoy}
-                  onChange={(e) => setSelectedBuoy(e.target.value)}
-                  className="w-full bg-surface-container-low text-on-surface font-bold py-4 px-6 rounded-2xl appearance-none border border-black/5 dark:border-white/5 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+              <div className="relative">
+                <button 
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="w-full bg-surface-container-low text-on-surface font-bold py-4 px-6 rounded-2xl border border-black/5 dark:border-white/5 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all flex items-center justify-between"
                 >
-                  {allBuoys.map(buoy => (
-                    <option key={buoy.id} value={buoy.name}>
-                      {buoy.name} Buoy {!buoy.active ? "(Offline)" : ""}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant opacity-50">
-                  <ChevronDown className="w-5 h-5" />
-                </div>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${allBuoys.find(b => b.name === selectedBuoy)?.active ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`} />
+                    <span>{selectedBuoy} Buoy</span>
+                  </div>
+                  <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                <AnimatePresence>
+                  {isDropdownOpen && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-40" 
+                        onClick={() => setIsDropdownOpen(false)} 
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        className="absolute top-full left-0 right-0 mt-2 z-50 bg-surface-container-low border border-black/5 dark:border-white/5 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl"
+                      >
+                        {allBuoys.map(buoy => (
+                          <button
+                            key={buoy.id}
+                            onClick={() => {
+                              setSelectedBuoy(buoy.name);
+                              setIsDropdownOpen(false);
+                            }}
+                            className={`w-full px-6 py-4 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${selectedBuoy === buoy.name ? "bg-primary/5" : ""}`}
+                          >
+                            <span className={`font-bold ${selectedBuoy === buoy.name ? "text-primary" : "text-on-surface"}`}>
+                              {buoy.name} Buoy
+                            </span>
+                            <div className={`w-2 h-2 rounded-full ${buoy.active ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`} />
+                          </button>
+                        ))}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Main Weather Card */}
-              <section className="bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h2 className="text-2xl font-semibold text-on-surface">{data?.location}</h2>
-                    <p className="text-on-surface-variant text-sm font-medium opacity-70">
-                      {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                  <div className="flex gap-1 bg-surface-container-highest p-1 rounded-xl">
-                    <button onClick={() => setUnit("F")} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${unit === "F" ? "bg-surface shadow-sm" : "opacity-50"}`}>°F</button>
-                    <button onClick={() => setUnit("C")} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${unit === "C" ? "bg-surface shadow-sm" : "opacity-50"}`}>°C</button>
-                  </div>
-                </div>
-
-                <div className="mt-8 flex flex-col items-center">
-                  <div className="flex items-center gap-4">
-                    {getConditionIcon(data?.condition || "")}
-                    <div className="flex flex-col items-center">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">Water</span>
-                      <span className="text-7xl font-light tracking-tighter text-on-surface">
-                        {data?.status === "ACTIVE" ? Math.round(currentTemp || 0) : "--"}°
-                      </span>
+              <section className="relative overflow-hidden bg-surface-container-low rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/5">
+                <img 
+                  src="https://images.unsplash.com/photo-1439066615861-d1af74d74000?auto=format&fit=crop&w=1200&q=80"
+                  alt="Lake Background"
+                  className="absolute inset-0 w-full h-full object-cover opacity-[0.25] dark:opacity-[0.35] pointer-events-none select-none"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="relative z-10">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h2 className="text-2xl font-semibold text-on-surface">{data?.location}</h2>
+                      <p className="text-on-surface-variant text-sm font-medium opacity-70">
+                        {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                    <div className="flex gap-1 bg-surface-container-highest/50 backdrop-blur-md p-1 rounded-xl">
+                      <button onClick={() => setUnit("F")} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${unit === "F" ? "bg-surface shadow-sm" : "opacity-50"}`}>°F</button>
+                      <button onClick={() => setUnit("C")} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${unit === "C" ? "bg-surface shadow-sm" : "opacity-50"}`}>°C</button>
                     </div>
                   </div>
-                  <p className="text-xl font-medium text-on-surface mt-2">
-                    {data?.status === "ACTIVE" ? `${data?.condition} Conditions` : "Sensor Offline"}
-                  </p>
-                  <div className="flex gap-3 mt-1 text-on-surface-variant font-medium">
-                    {data?.status === "ACTIVE" ? (
-                      <>
-                        <span>H:{Math.round((unit === "F" ? data?.tempF : data?.tempC) || 0) + 2}°</span>
-                        <span>L:{Math.round((unit === "F" ? data?.tempF : data?.tempC) || 0) - 3}°</span>
-                      </>
-                    ) : (
-                      <span className="text-xs opacity-50 italic">Historical data unavailable for this sensor</span>
-                    )}
-                  </div>
-                </div>
 
-                <div className="mt-8 pt-6 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full animate-pulse ${data?.status === "ACTIVE" ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`}></span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-                      {data?.status === "ACTIVE" ? "Live Buoy" : "Offline Mode"}
-                    </span>
+                  <div className="mt-8 flex flex-col items-center">
+                    <div className="flex items-center gap-4">
+                      {getConditionIcon(data?.condition || "")}
+                      <div className="flex flex-col items-center">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">Water</span>
+                        <span className="text-7xl font-light tracking-tighter text-on-surface">
+                          {data?.status === "ACTIVE" ? Math.round(currentTemp || 0) : "--"}°
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xl font-medium text-on-surface mt-2">
+                      {data?.status === "ACTIVE" ? `${data?.condition} Conditions` : "Sensor Offline"}
+                    </p>
+                    <div className="flex gap-3 mt-1 text-on-surface-variant font-medium">
+                      {data?.status === "ACTIVE" ? (
+                        <>
+                          <span>H:{Math.round((unit === "F" ? data?.tempF : data?.tempC) || 0) + 2}°</span>
+                          <span>L:{Math.round((unit === "F" ? data?.tempF : data?.tempC) || 0) - 3}°</span>
+                        </>
+                      ) : (
+                        <span className="text-xs opacity-50 italic">Historical data unavailable for this sensor</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-                      {data?.status === "ACTIVE" ? `Updated ${formatTimestamp(data?.timestamp)}` : "Data Not Available"}
-                    </p>
-                    <p className="text-[8px] font-medium text-on-surface-variant opacity-50 uppercase tracking-tighter mt-0.5">
-                      Checked {new Date(data?.lastSync || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                    </p>
+
+                  <div className="mt-8 pt-6 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full animate-pulse ${data?.status === "ACTIVE" ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`}></span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                        {data?.status === "ACTIVE" ? "Live Buoy" : "Offline Mode"}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                        {data?.status === "ACTIVE" ? `Updated ${formatTimestamp(data?.timestamp)}` : "Data Not Available"}
+                      </p>
+                      <p className="text-[8px] font-medium text-on-surface-variant opacity-50 uppercase tracking-tighter mt-0.5">
+                        Checked {new Date(data?.lastSync || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </section>
@@ -798,14 +856,16 @@ export default function App() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg relative overflow-hidden">
-                  <Mountain className="w-7 h-7" />
-                  <div className="absolute bottom-1 right-1 opacity-40">
-                    <Waves className="w-4 h-4" />
+                <div className="relative shrink-0">
+                  <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center text-white shadow-xl">
+                    <Mountain className="w-8 h-8" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-surface-container-low rounded-full flex items-center justify-center shadow-md border border-black/5 dark:border-white/10">
+                    <Waves className="text-primary w-4 h-4" />
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-on-surface">Install Lakes Monitor</h3>
+                  <h3 className="text-sm font-black text-on-surface uppercase tracking-tight">Install 2lakes.app</h3>
                   <p className="text-[11px] text-on-surface-variant opacity-70 mt-0.5">Add to your home screen for quick access.</p>
                 </div>
               </div>

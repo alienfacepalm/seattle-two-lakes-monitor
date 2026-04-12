@@ -1,5 +1,5 @@
 {
-  "name": "Seattle Two Lakes Monitor",
+  "name": "2lakes.app",
   "description": "Live buoy monitoring for Lake Washington and Lake Sammamish.",
   "requestFramePermissions": []
 }

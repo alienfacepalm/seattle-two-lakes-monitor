@@ -1,6 +1,6 @@
 {
-  "name": "Seattle Two Lakes Monitor",
-  "short_name": "Lakes Monitor",
+  "name": "2lakes.app",
+  "short_name": "2lakes.app",
   "description": "Live buoy monitoring for Lake Washington and Lake Sammamish.",
   "start_url": "/",
   "display": "standalone",
