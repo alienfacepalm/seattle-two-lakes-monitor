@@ -194,10 +194,17 @@ async function startServer() {
       const parts = buoyLine.split("|").map(p => p.trim());
       const nameIndex = parts.findIndex(p => p.toLowerCase().includes(searchName));
       
+      const isActive = parts[nameIndex + 9] === "Y";
+      
+      if (!isActive) {
+        return res.json([]);
+      }
+
       const rawTempC = parts[nameIndex + 5];
       const currentTempC = isNaN(parseFloat(rawTempC)) ? 14.0 : parseFloat(rawTempC);
       const currentAirTempC = parseFloat(parts[nameIndex + 2]);
       const currentWindSpeed = parseFloat(parts[nameIndex + 3]);
+      const currentHumidity = parseFloat(parts[nameIndex + 11]);
 
       // Generate 24 hours of data points
       const history = [];
@@ -216,6 +223,9 @@ async function startServer() {
 
         const windVariance = (Math.random() - 0.5) * 5.0;
         const windSpeed = Math.max(0, (isNaN(currentWindSpeed) ? 5 : currentWindSpeed) + windVariance);
+
+        const humidityVariance = (Math.random() - 0.5) * 10.0;
+        const humidity = Math.min(100, Math.max(0, (isNaN(currentHumidity) ? 65 : currentHumidity) + (cycle * -10.0) + humidityVariance));
         
         // Simple heuristic for historical rain chance
         const isLikelyRainy = (isNaN(currentAirTempC) ? 12 : currentAirTempC) < 15 && Math.random() > 0.6;
@@ -229,7 +239,8 @@ async function startServer() {
           airTempC: parseFloat(airTempC.toFixed(2)),
           airTempF: Math.round((airTempC * 9/5) + 32),
           windSpeed: parseFloat(windSpeed.toFixed(1)),
-          precipitation: parseFloat(precipitation.toFixed(2))
+          precipitation: parseFloat(precipitation.toFixed(2)),
+          humidity: Math.round(humidity)
         });
       }
 
@@ -247,7 +258,9 @@ async function startServer() {
           tempF: Math.round((14 + Math.sin(i)) * 9/5 + 32),
           airTempC: 12 + Math.sin(i) * 2,
           airTempF: Math.round((12 + Math.sin(i) * 2) * 9/5 + 32),
-          windSpeed: 4 + Math.random() * 4
+          windSpeed: 4 + Math.random() * 4,
+          humidity: 60 + Math.random() * 20,
+          precipitation: 0
         });
       }
       res.json(history);
