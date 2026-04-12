@@ -13,6 +13,7 @@ import {
   Sun,
   Cloud,
   CloudRain,
+  Droplets,
   Wind,
   AlertCircle,
   AlertTriangle,
@@ -678,7 +679,7 @@ export default function App() {
                     {/* Humidity */}
                     <section className="bg-surface-container-highest/30 rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
                       <div className="flex items-center gap-2 mb-6 text-on-surface-variant">
-                        <CloudRain className="w-4 h-4" />
+                        <Droplets className="w-4 h-4" />
                         <span className="text-[10px] font-bold uppercase tracking-widest">Humidity Trend (%)</span>
                       </div>
                       <div className="h-40 w-full">
