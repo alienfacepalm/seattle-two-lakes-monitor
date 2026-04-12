@@ -21,7 +21,9 @@ async function startServer() {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     console.log(`[API] Fetching buoy data for: ${req.query.buoy || "Sammamish"}`);
     try {
-      const targetBuoy = (req.query.buoy as string) || "Sammamish";
+      const targetBuoy = (req.query.buoy as string) || "Lake Sammamish";
+      const searchName = targetBuoy.toLowerCase().replace("lake ", "");
+      
       const response = await fetch("https://green2.kingcounty.gov/lake-buoy/GenerateMapData.aspx", {
         signal: AbortSignal.timeout(10000),
         headers: { "Cache-Control": "no-cache" }
@@ -29,10 +31,10 @@ async function startServer() {
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const text = await response.text();
       const buoys = text.split("^").filter(line => line.trim() !== "");
-      const buoyLine = buoys.find(line => line.toLowerCase().includes(targetBuoy.toLowerCase()));
+      const buoyLine = buoys.find(line => line.toLowerCase().includes(searchName));
       if (!buoyLine) throw new Error(`${targetBuoy} buoy data not found`);
       const parts = buoyLine.split("|").map(p => p.trim());
-      const nameIndex = parts.findIndex(p => p.toLowerCase().includes(targetBuoy.toLowerCase()));
+      const nameIndex = parts.findIndex(p => p.toLowerCase().includes(searchName));
       const tempC = parseFloat(parts[nameIndex + 5]);
       if (isNaN(tempC)) throw new Error(`Invalid temperature data`);
       const tempF = (tempC * 9/5) + 32;
@@ -74,8 +76,12 @@ async function startServer() {
         condition = "Cloudy";
       }
 
+      let locationName = parts[nameIndex];
+      if (locationName === "Sammamish") locationName = "Lake Sammamish";
+      if (locationName === "Washington") locationName = "Lake Washington";
+
       const data = {
-        location: `${parts[nameIndex]} Buoy`,
+        location: `${locationName} Buoy`,
         tempC: parseFloat(tempC.toFixed(2)),
         tempF: Math.round(tempF),
         airTempC: isNaN(airTempC) ? null : parseFloat(airTempC.toFixed(2)),
@@ -92,8 +98,12 @@ async function startServer() {
     } catch (error) {
       console.error("Error fetching buoy data:", error);
       // Fallback data if external site is unreachable
+      let requestedBuoy = (req.query.buoy as string) || "Lake Sammamish";
+      if (requestedBuoy === "Sammamish") requestedBuoy = "Lake Sammamish";
+      if (requestedBuoy === "Washington") requestedBuoy = "Lake Washington";
+
       const fallback = {
-        location: `${req.query.buoy || "Sammamish"} Buoy (Offline)`,
+        location: `${requestedBuoy} Buoy (Offline)`,
         tempC: 14.5,
         tempF: 58,
         airTempC: 12.0,
@@ -127,7 +137,14 @@ async function startServer() {
         const parts = line.split("|").map(p => p.trim());
         // Find the first non-empty part that isn't just whitespace or tabs
         const nameIndex = parts.findIndex(p => p.length > 0 && !p.startsWith("\t"));
-        const name = parts[nameIndex] || "Unknown";
+        if (nameIndex === -1) return null;
+        
+        let name = parts[nameIndex];
+        
+        // Add "Lake " prefix if missing for Sammamish and Washington
+        if (name === "Sammamish") name = "Lake Sammamish";
+        if (name === "Washington") name = "Lake Washington";
+        
         const tempC = parseFloat(parts[nameIndex + 5]);
         
         return {
@@ -139,15 +156,15 @@ async function startServer() {
           lon: parseFloat(parts[nameIndex + 8]),
           active: parts[nameIndex + 9] === "Y"
         };
-      });
+      }).filter((buoy): buoy is NonNullable<typeof buoy> => buoy !== null && buoy.name !== "Unknown");
 
       res.json(buoyData);
     } catch (error) {
       console.error("Error fetching all buoys:", error);
       // Fallback list
       res.json([
-        { id: "sammamish", name: "Sammamish", tempC: 14.5, tempF: 58, lat: 47.58167, lon: -122.09000, active: false },
-        { id: "washington", name: "Washington", tempC: 13.9, tempF: 57, lat: 47.61222, lon: -122.25428, active: false }
+        { id: "lake-sammamish", name: "Lake Sammamish", tempC: 14.5, tempF: 58, lat: 47.58167, lon: -122.09000, active: false },
+        { id: "lake-washington", name: "Lake Washington", tempC: 13.9, tempF: 57, lat: 47.61222, lon: -122.25428, active: false }
       ]);
     }
   });
@@ -155,21 +172,23 @@ async function startServer() {
   // API Route to fetch history (simulated for now based on real current data)
   app.get("/api/buoy-history", async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    console.log(`[API] Fetching history for: ${req.query.buoy || "Sammamish"}`);
+    console.log(`[API] Fetching history for: ${req.query.buoy || "Lake Sammamish"}`);
     try {
-      const targetBuoy = (req.query.buoy as string) || "Sammamish";
+      const targetBuoy = (req.query.buoy as string) || "Lake Sammamish";
+      const searchName = targetBuoy.toLowerCase().replace("lake ", "");
+
       const response = await fetch("https://green2.kingcounty.gov/lake-buoy/GenerateMapData.aspx", {
         signal: AbortSignal.timeout(10000),
         headers: { "Cache-Control": "no-cache" }
       });
       const text = await response.text();
       const buoys = text.split("^").filter(line => line.trim() !== "");
-      const buoyLine = buoys.find(line => line.toLowerCase().includes(targetBuoy.toLowerCase()));
+      const buoyLine = buoys.find(line => line.toLowerCase().includes(searchName));
       
       if (!buoyLine) throw new Error(`${targetBuoy} buoy not found`);
       
       const parts = buoyLine.split("|").map(p => p.trim());
-      const nameIndex = parts.findIndex(p => p.toLowerCase().includes(targetBuoy.toLowerCase()));
+      const nameIndex = parts.findIndex(p => p.toLowerCase().includes(searchName));
       const currentTempC = parseFloat(parts[nameIndex + 5]);
       const currentAirTempC = parseFloat(parts[nameIndex + 2]);
       const currentWindSpeed = parseFloat(parts[nameIndex + 3]);
