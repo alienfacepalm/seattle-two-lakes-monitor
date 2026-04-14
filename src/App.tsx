@@ -72,6 +72,39 @@ interface BuoyData {
   status: string;
   condition: string;
   lastSync: string;
+  lat: number | null;
+  lon: number | null;
+  sunrise?: string;
+  sunset?: string;
+  hourlyForecast?: Array<{
+    time: string;
+    temp: number;
+    condition: string;
+    isDaytime: boolean;
+    windSpeed: string;
+    windDirection?: string;
+    icon: string;
+    precipitationProbability: number;
+    humidity: number | null;
+    dewpoint: number | null;
+  }>;
+  dailyForecast?: Array<{
+    name: string;
+    temp: number;
+    isDaytime: boolean;
+    icon: string;
+    shortForecast: string;
+    detailedForecast: string;
+    precipitationProbability: number;
+  }>;
+  alerts?: Array<{
+    event: string;
+    severity: string;
+    headline: string;
+    description: string;
+    instruction: string;
+  }>;
+  radarStation?: string;
 }
 
 interface MapBuoy {
@@ -349,6 +382,8 @@ export default function App() {
           windSpeed: buoyData.windSpeed,
           precipitation: buoyData.precipitation,
           humidity: (buoyData.humidity === null || isNaN(buoyData.humidity)) ? null : buoyData.humidity,
+          lat: buoyData.lat,
+          lon: buoyData.lon,
           serverTime: serverTimestamp()
         });
         console.log("Snapshot saved to Firestore:", normalizedTimestamp);
@@ -570,6 +605,28 @@ export default function App() {
                     </AnimatePresence>
                   </div>
 
+                  {/* Alerts Banner */}
+                  <AnimatePresence>
+                    {data?.alerts && data.alerts.length > 0 && (
+                      <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="mb-6 overflow-hidden"
+                      >
+                        {data.alerts.map((alert, idx) => (
+                          <div key={idx} className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-start gap-3 mb-2">
+                            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                            <div>
+                              <h3 className="text-sm font-black text-red-500 uppercase tracking-wider">{alert.event}</h3>
+                              <p className="text-xs font-medium text-on-surface opacity-80 mt-1">{alert.headline}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {/* Current Conditions Card */}
                   <section className="relative overflow-hidden bg-surface-container-low rounded-[2.5rem] p-8 shadow-sm border border-black/5 dark:border-white/5">
                     <img 
@@ -618,11 +675,24 @@ export default function App() {
                             {data?.status === "ACTIVE" ? "Live Buoy" : "Offline Mode"}
                           </span>
                         </div>
-                        <div className="text-right group cursor-default">
-                          <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface-variant opacity-70 group-hover:opacity-100 group-hover:text-on-surface transition-all duration-300">Updated {new Date(data?.timestamp || "").toLocaleDateString()} at {new Date(data?.timestamp || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                          <div className="flex items-center justify-end gap-1.5">
-                            {isSyncing && <Database className="w-2.5 h-2.5 text-primary animate-pulse" />}
-                            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface-variant opacity-50 group-hover:opacity-90 transition-all duration-300">Checked {lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
+                        <div className="flex items-center gap-4">
+                          {data?.radarStation && (
+                            <a 
+                              href={`https://radar.weather.gov/station/${data.radarStation}/standard`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 rounded-full transition-colors group/radar"
+                            >
+                              <Database className="w-3 h-3 text-primary" />
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Live Radar</span>
+                            </a>
+                          )}
+                          <div className="text-right group cursor-default">
+                            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface-variant opacity-70 group-hover:opacity-100 group-hover:text-on-surface transition-all duration-300">Updated {new Date(data?.timestamp || "").toLocaleDateString()} at {new Date(data?.timestamp || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                            <div className="flex items-center justify-end gap-1.5">
+                              {isSyncing && <Database className="w-2.5 h-2.5 text-primary animate-pulse" />}
+                              <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface-variant opacity-50 group-hover:opacity-90 transition-all duration-300">Checked {lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -636,23 +706,74 @@ export default function App() {
                       <span className="text-[10px] font-bold uppercase tracking-widest">Hourly Forecast</span>
                     </div>
                     <div className="flex overflow-x-auto pb-2 gap-6 no-scrollbar">
-                      {Array.from({ length: 12 }).map((_, i) => {
-                        const time = new Date();
-                        time.setHours(time.getHours() + i);
-                        const hour = time.getHours();
-                        const displayHour = hour === 0 ? "12 AM" : hour > 12 ? `${hour - 12} PM` : hour === 12 ? "12 PM" : `${hour} AM`;
-                        const baseTemp = (unit === "F" ? data?.tempF : data?.tempC) ?? 0;
-                        const temp = Math.round(baseTemp) + (Math.sin(i / 2) * 2);
-                        return (
-                          <div key={i} className="flex flex-col items-center gap-3 min-w-[40px]">
-                            <span className="text-[10px] font-bold text-on-surface-variant uppercase">{i === 0 ? "Now" : displayHour.split(' ')[0]}</span>
-                            <Thermometer className="w-4 h-4 text-primary opacity-60" />
-                            <span className="text-sm font-bold text-on-surface">{isNaN(temp) ? "--" : Math.round(temp)}°</span>
-                          </div>
-                        );
-                      })}
+                      {data?.hourlyForecast && data.hourlyForecast.length > 0 ? (
+                        data.hourlyForecast.map((p, i) => {
+                          const time = new Date(p.time);
+                          const hour = time.getHours();
+                          const displayHour = hour === 0 ? "12 AM" : hour > 12 ? `${hour - 12} PM` : hour === 12 ? "12 PM" : `${hour} AM`;
+                          const temp = unit === "F" ? p.temp : Math.round((p.temp - 32) * 5/9);
+                          return (
+                            <div key={i} className="flex flex-col items-center gap-3 min-w-[80px] sm:min-w-[100px]">
+                              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{i === 0 ? "Now" : displayHour.split(' ')[0]}</span>
+                              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 relative group/h overflow-hidden shadow-sm">
+                                <img src={p.icon} alt={p.condition} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <span className="text-base font-black text-on-surface">{isNaN(temp) ? "--" : Math.round(temp)}°</span>
+                                {p.windDirection && (
+                                  <span className="text-[9px] font-bold text-on-surface-variant opacity-60 uppercase mt-0.5 tracking-tight">{p.windDirection} {p.windSpeed.split(' ')[0]}</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        Array.from({ length: 12 }).map((_, i) => {
+                          const time = new Date();
+                          time.setHours(time.getHours() + i);
+                          const hour = time.getHours();
+                          const displayHour = hour === 0 ? "12 AM" : hour > 12 ? `${hour - 12} PM` : hour === 12 ? "12 PM" : `${hour} AM`;
+                          const baseTemp = (unit === "F" ? data?.tempF : data?.tempC) ?? 0;
+                          const temp = Math.round(baseTemp) + (Math.sin(i / 2) * 2);
+                          return (
+                            <div key={i} className="flex flex-col items-center gap-3 min-w-[40px]">
+                              <span className="text-[10px] font-bold text-on-surface-variant uppercase">{i === 0 ? "Now" : displayHour.split(' ')[0]}</span>
+                              <Thermometer className="w-4 h-4 text-primary opacity-60" />
+                              <span className="text-sm font-bold text-on-surface">{isNaN(temp) ? "--" : Math.round(temp)}°</span>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
                   </section>
+
+                  {/* 7-Day Forecast */}
+                  {data?.dailyForecast && data.dailyForecast.length > 0 && (
+                    <section className="bg-surface-container-low rounded-[2rem] p-6 mt-6 shadow-sm border border-black/5 dark:border-white/5">
+                      <div className="flex items-center gap-2 text-on-surface-variant mb-6">
+                        <HistoryIcon className="w-4 h-4" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">7-Day Outlook</span>
+                      </div>
+                      <div className="space-y-4">
+                        {data.dailyForecast.slice(0, 10).map((day, idx) => (
+                          <div key={idx} className="flex items-center justify-between group/day">
+                            <div className="flex items-center gap-4 min-w-[120px]">
+                              <span className="text-xs font-bold text-on-surface w-24">{day.name}</span>
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 overflow-hidden shadow-sm">
+                                <img src={day.icon} alt={day.shortForecast} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              </div>
+                            </div>
+                            <div className="flex-1 px-4">
+                              <p className="text-[10px] sm:text-xs font-medium text-on-surface-variant line-clamp-1 opacity-70 group-hover/day:opacity-100 transition-opacity">{day.shortForecast}</p>
+                            </div>
+                            <div className="flex items-center gap-3 min-w-[60px] justify-end">
+                              <span className="text-sm sm:text-base font-black text-on-surface">{unit === "F" ? day.temp : Math.round((day.temp - 32) * 5/9)}°</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
 
                   {/* Metrics Grid */}
                   <div className="grid grid-cols-2 gap-4 mt-6">
@@ -731,17 +852,55 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Pressure */}
+                    {/* Dew Point */}
                     <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
                       <div className="flex items-center gap-2 text-on-surface-variant mb-6">
-                        <LayoutDashboard className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Pressure</span>
+                        <ThermometerSnowflake className="w-4 h-4" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Dew Point</span>
                       </div>
                       <div className="flex flex-col items-center">
-                        <p className="text-2xl font-black text-on-surface">29.73</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">Falling</p>
+                        <p className="text-2xl font-black text-on-surface">
+                          {data?.hourlyForecast?.[0]?.dewpoint 
+                            ? `${Math.round(unit === "F" ? (data.hourlyForecast[0].dewpoint * 9/5 + 32) : data.hourlyForecast[0].dewpoint)}°` 
+                            : "--"}
+                        </p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">Atmospheric</p>
                       </div>
                     </div>
+
+                    {/* Sunrise & Sunset */}
+                    {(data?.sunrise || data?.sunset) && (
+                      <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
+                        <div className="flex items-center gap-2 text-on-surface-variant mb-6">
+                          <Sun className="w-4 h-4" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest">Sun Cycle</span>
+                        </div>
+                        <div className="flex flex-col gap-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center">
+                                <Sun className="w-4 h-4 text-orange-500" />
+                              </div>
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant opacity-60">Sunrise</span>
+                            </div>
+                            <span className="text-sm font-black text-on-surface">
+                              {data.sunrise ? new Date(data.sunrise).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                                <Moon className="w-4 h-4 text-indigo-500" />
+                              </div>
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant opacity-60">Sunset</span>
+                            </div>
+                            <span className="text-sm font-black text-on-surface">
+                              {data.sunset ? new Date(data.sunset).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Humidity */}
                     {currentHumidityAvailable && (

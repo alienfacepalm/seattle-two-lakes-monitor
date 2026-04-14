@@ -47,6 +47,8 @@ service cloud.firestore {
              (!('windSpeed' in data) || data.windSpeed is number || data.windSpeed == null) &&
              (!('precipitation' in data) || data.precipitation is number || data.precipitation == null) &&
              (!('humidity' in data) || data.humidity is number || data.humidity == null) &&
+             (!('lat' in data) || data.lat is number || data.lat == null) &&
+             (!('lon' in data) || data.lon is number || data.lon == null) &&
              (!('serverTime' in data) || data.serverTime is timestamp);
     }
 

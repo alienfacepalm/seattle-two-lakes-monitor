@@ -15,6 +15,8 @@
         "windSpeed": { "type": "number" },
         "precipitation": { "type": "number" },
         "humidity": { "type": "number" },
+        "lat": { "type": "number" },
+        "lon": { "type": "number" },
         "serverTime": { "type": "string", "format": "date-time", "description": "Server-side timestamp" }
       },
       "required": ["buoyId", "timestamp", "recordedAt"]

@@ -90,6 +90,8 @@ async function performBackgroundSync() {
       const windSpeed = getVal(3);
       const precipitation = getVal(10);
       const humidity = getVal(11);
+      const lat = getVal(7);
+      const lon = getVal(8);
 
       if (existing.empty) {
         await addDoc(collection(db, "buoy_snapshots"), {
@@ -102,7 +104,9 @@ async function performBackgroundSync() {
           airTempF: isNaN(airTempC) ? null : Math.round((airTempC * 9/5) + 32),
           windSpeed: isNaN(windSpeed) ? null : windSpeed,
           precipitation: isNaN(precipitation) ? 0 : precipitation,
-          humidity: isNaN(humidity) ? null : humidity
+          humidity: isNaN(humidity) ? null : humidity,
+          lat: isNaN(lat) ? null : lat,
+          lon: isNaN(lon) ? null : lon
         });
         console.log(`[Background Sync] Saved ${buoyName}: T=${tempC}, P=${precipitation}, H=${humidity}`);
         syncStats.pointsSaved++;
@@ -114,6 +118,10 @@ async function performBackgroundSync() {
     }
   }
 }
+
+// Simple in-memory cache for NWS data
+const nwsCache: Record<string, { data: any, expires: number }> = {};
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 async function startServer() {
   const app = express();
@@ -173,6 +181,8 @@ async function startServer() {
       const windSpeed = getVal(3);
       const precipitation = getVal(10);
       const humidity = getVal(11);
+      const lat = getVal(7);
+      const lon = getVal(8);
 
       // Parse both timestamps and pick the most recent one
       const ts1 = parts[nameIndex + 1];
@@ -207,6 +217,98 @@ async function startServer() {
       if (locationName === "Sammamish") locationName = "Lake Sammamish";
       if (locationName === "Washington") locationName = "Lake Washington";
 
+      // NWS Data Augmentation (Dynamic based on Buoy Coords)
+      let sunrise = null;
+      let sunset = null;
+      let hourlyForecast = [];
+      let dailyForecast = [];
+      let alerts = [];
+      let radarStation = "KATX"; // Default
+
+      if (!isNaN(lat) && !isNaN(lon)) {
+        const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+        const cached = nwsCache[cacheKey];
+        
+        if (cached && cached.expires > Date.now()) {
+          console.log(`[NWS] Using cached data for ${locationName}`);
+          ({ sunrise, sunset, hourlyForecast, dailyForecast, alerts, radarStation } = cached.data);
+        } else {
+          try {
+            // Fetch Point Data (Metadata + Astronomy)
+            const pointRes = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`, {
+              signal: AbortSignal.timeout(10000),
+              headers: { "User-Agent": "LakeBuoyApp/1.0 (brandons.pliska@gmail.com)" }
+            });
+            
+            if (pointRes.ok) {
+              const pointData = await pointRes.json();
+              sunrise = pointData.properties.astronomicalData?.sunrise;
+              sunset = pointData.properties.astronomicalData?.sunset;
+              radarStation = pointData.properties.radarStation || "KATX";
+              
+              const hourlyUrl = pointData.properties.forecastHourly;
+              const dailyUrl = pointData.properties.forecast;
+              const forecastZone = pointData.properties.forecastZone;
+
+              // Fetch remaining data in parallel
+              const [hourlyRes, dailyRes, alertsRes] = await Promise.allSettled([
+                hourlyUrl ? fetch(hourlyUrl, { signal: AbortSignal.timeout(10000), headers: { "User-Agent": "LakeBuoyApp/1.0 (brandons.pliska@gmail.com)" } }) : Promise.reject("No hourly URL"),
+                dailyUrl ? fetch(dailyUrl, { signal: AbortSignal.timeout(10000), headers: { "User-Agent": "LakeBuoyApp/1.0 (brandons.pliska@gmail.com)" } }) : Promise.reject("No daily URL"),
+                forecastZone ? fetch(`https://api.weather.gov/alerts/active/zone/${forecastZone.split('/').pop()}`, { signal: AbortSignal.timeout(10000), headers: { "User-Agent": "LakeBuoyApp/1.0 (brandons.pliska@gmail.com)" } }) : Promise.reject("No zone ID")
+              ]);
+
+              if (hourlyRes.status === 'fulfilled' && hourlyRes.value.ok) {
+                const forecastData = await hourlyRes.value.json();
+                hourlyForecast = forecastData.properties.periods.slice(0, 24).map((p: any) => ({
+                  time: p.startTime,
+                  temp: p.temperature,
+                  condition: p.shortForecast,
+                  isDaytime: p.isDaytime,
+                  windSpeed: p.windSpeed,
+                  windDirection: p.windDirection,
+                  icon: p.icon,
+                  precipitationProbability: p.probabilityOfPrecipitation?.value || 0,
+                  humidity: p.relativeHumidity?.value || null,
+                  dewpoint: p.dewpoint?.value || null
+                }));
+              }
+
+              if (dailyRes.status === 'fulfilled' && dailyRes.value.ok) {
+                const dailyData = await dailyRes.value.json();
+                dailyForecast = dailyData.properties.periods.map((p: any) => ({
+                  name: p.name,
+                  temp: p.temperature,
+                  isDaytime: p.isDaytime,
+                  icon: p.icon,
+                  shortForecast: p.shortForecast,
+                  detailedForecast: p.detailedForecast,
+                  precipitationProbability: p.probabilityOfPrecipitation?.value || 0
+                }));
+              }
+
+              if (alertsRes.status === 'fulfilled' && alertsRes.value.ok) {
+                const alertsData = await alertsRes.value.json();
+                alerts = alertsData.features.map((f: any) => ({
+                  event: f.properties.event,
+                  severity: f.properties.severity,
+                  headline: f.properties.headline,
+                  description: f.properties.description,
+                  instruction: f.properties.instruction
+                }));
+              }
+
+              // Update cache
+              nwsCache[cacheKey] = {
+                data: { sunrise, sunset, hourlyForecast, dailyForecast, alerts, radarStation },
+                expires: Date.now() + CACHE_TTL
+              };
+            }
+          } catch (nwsErr) {
+            console.warn("[NWS] Failed to fetch augmented data:", nwsErr);
+          }
+        }
+      }
+
       const data = {
         location: `${locationName} Buoy`,
         tempC: isNaN(tempC) ? null : parseFloat(tempC.toFixed(2)),
@@ -214,12 +316,20 @@ async function startServer() {
         airTempC: isNaN(airTempC) ? null : parseFloat(airTempC.toFixed(2)),
         airTempF: isNaN(airTempC) ? null : Math.round((airTempC * 9/5) + 32),
         windSpeed: isNaN(windSpeed) ? null : parseFloat(windSpeed.toFixed(1)),
-        precipitation: isNaN(precipitation) ? 0 : parseFloat(precipitation.toFixed(2)),
-        humidity: isNaN(humidity) ? null : parseFloat(humidity.toFixed(1)),
+        precipitation: (isNaN(precipitation) || precipitation === null) ? (hourlyForecast[0]?.precipitationProbability > 0 ? hourlyForecast[0].precipitationProbability / 100 : 0) : parseFloat(precipitation.toFixed(2)),
+        humidity: (isNaN(humidity) || humidity === null) ? (hourlyForecast[0]?.humidity || null) : parseFloat(humidity.toFixed(1)),
+        lat: isNaN(lat) ? null : lat,
+        lon: isNaN(lon) ? null : lon,
         timestamp: bestTimestamp, 
         status: isActive ? "ACTIVE" : "INACTIVE",
         condition,
-        lastSync: new Date().toISOString()
+        lastSync: new Date().toISOString(),
+        sunrise,
+        sunset,
+        hourlyForecast,
+        dailyForecast,
+        alerts,
+        radarStation
       };
       res.json(data);
     } catch (error) {
