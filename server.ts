@@ -54,6 +54,12 @@ async function performBackgroundSync() {
       const parts = buoyLine.split("|").map(p => p.trim());
       const nameIndex = parts.findIndex(p => p.toLowerCase().includes(searchName));
       
+      if (nameIndex === -1) continue;
+
+      // King County Buoy Data Format (Relative to Name Index):
+      // 0: Name, 1: Time, 2: AirTemp, 3: WindSpeed, 4: WindDir, 5: WaterTemp, 
+      // 6: Time2, 7: Lat, 8: Lon, 9: Active, 10: Precipitation, 11: Humidity
+      
       const rawTempC = parts[nameIndex + 5];
       const tempC = parseFloat(rawTempC);
       if (isNaN(tempC)) continue;
@@ -72,6 +78,19 @@ async function performBackgroundSync() {
       );
       
       const existing = await getDocs(q);
+      
+      const getVal = (idx: number) => {
+        const val = parts[nameIndex + idx];
+        if (val === undefined || val === "" || val === null) return NaN;
+        const parsed = parseFloat(val);
+        return isNaN(parsed) ? NaN : parsed;
+      };
+
+      const airTempC = getVal(2);
+      const windSpeed = getVal(3);
+      const precipitation = getVal(10);
+      const humidity = getVal(11);
+
       if (existing.empty) {
         await addDoc(collection(db, "buoy_snapshots"), {
           buoyId: buoyName,
@@ -79,13 +98,13 @@ async function performBackgroundSync() {
           recordedAt: new Date().toISOString(),
           tempC: tempC,
           tempF: Math.round((tempC * 9/5) + 32),
-          airTempC: parseFloat(parts[nameIndex + 2]),
-          airTempF: Math.round((parseFloat(parts[nameIndex + 2]) * 9/5) + 32),
-          windSpeed: parseFloat(parts[nameIndex + 3]),
-          precipitation: parseFloat(parts[nameIndex + 10]) || 0,
-          humidity: parseFloat(parts[nameIndex + 11])
+          airTempC: isNaN(airTempC) ? null : airTempC,
+          airTempF: isNaN(airTempC) ? null : Math.round((airTempC * 9/5) + 32),
+          windSpeed: isNaN(windSpeed) ? null : windSpeed,
+          precipitation: isNaN(precipitation) ? 0 : precipitation,
+          humidity: isNaN(humidity) ? null : humidity
         });
-        console.log(`[Background Sync] Saved ${buoyName} for ${normalizedTimestamp}`);
+        console.log(`[Background Sync] Saved ${buoyName}: T=${tempC}, P=${precipitation}, H=${humidity}`);
         syncStats.pointsSaved++;
       }
       syncStats.lastSync = new Date().toISOString();
@@ -133,16 +152,27 @@ async function startServer() {
       
       if (nameIndex === -1) throw new Error(`Could not locate ${targetBuoy} in data line`);
 
+      // King County Buoy Data Format (Relative to Name Index):
+      // 0: Name, 1: Time, 2: AirTemp, 3: WindSpeed, 4: WindDir, 5: WaterTemp, 
+      // 6: Time2, 7: Lat, 8: Lon, 9: Active, 10: Precipitation, 11: Humidity
+
       const rawTempC = parts[nameIndex + 5];
       const tempC = parseFloat(rawTempC);
       const isActive = parts[nameIndex + 9] === "Y" && !isNaN(tempC);
       
       const tempF = isNaN(tempC) ? null : (tempC * 9/5) + 32;
       
-      const airTempC = parseFloat(parts[nameIndex + 2]);
-      const windSpeed = parseFloat(parts[nameIndex + 3]);
-      const precipitation = parseFloat(parts[nameIndex + 10]);
-      const humidity = parseFloat(parts[nameIndex + 11]);
+      const getVal = (idx: number) => {
+        const val = parts[nameIndex + idx];
+        if (val === undefined || val === "" || val === null) return NaN;
+        const parsed = parseFloat(val);
+        return isNaN(parsed) ? NaN : parsed;
+      };
+
+      const airTempC = getVal(2);
+      const windSpeed = getVal(3);
+      const precipitation = getVal(10);
+      const humidity = getVal(11);
 
       // Parse both timestamps and pick the most recent one
       const ts1 = parts[nameIndex + 1];

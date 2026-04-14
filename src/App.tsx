@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useLayoutEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLocation, useNavigate, Routes, Route, Navigate, Link } from "react-router-dom";
 import { 
@@ -193,6 +193,14 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   throw new Error(JSON.stringify(errInfo));
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 export default function App() {
   const [data, setData] = useState<BuoyData | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
@@ -226,6 +234,14 @@ export default function App() {
   const navigate = useNavigate();
   const activeTab = location.pathname === "/history" ? "history" : 
                     location.pathname === "/network" ? "map" : "current";
+
+  const selectedBuoyInfo = allBuoys.find(b => b.name === selectedBuoy);
+  const isSelectedBuoyOffline = selectedBuoyInfo && !selectedBuoyInfo.active;
+
+  const hasHumidityData = history.some(p => p.humidity !== null && p.humidity !== undefined && !isNaN(p.humidity));
+  const currentHumidityAvailable = data?.humidity !== null && data?.humidity !== undefined && !isNaN(data.humidity);
+  const hasPrecipitationData = history.some(p => p.precipitation !== null && p.precipitation !== undefined && p.precipitation > 0);
+  const currentPrecipitationAvailable = data?.precipitation !== null && data?.precipitation !== undefined && data.precipitation > 0;
 
   useEffect(() => {
     localStorage.setItem("selectedBuoy", selectedBuoy);
@@ -332,7 +348,7 @@ export default function App() {
           airTempF: buoyData.airTempF,
           windSpeed: buoyData.windSpeed,
           precipitation: buoyData.precipitation,
-          humidity: buoyData.humidity,
+          humidity: (buoyData.humidity === null || isNaN(buoyData.humidity)) ? null : buoyData.humidity,
           serverTime: serverTimestamp()
         });
         console.log("Snapshot saved to Firestore:", normalizedTimestamp);
@@ -469,6 +485,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen pb-32 transition-colors duration-300 bg-surface">
+      <ScrollToTop />
       <div className={`lake-bg lake-bg-${timeOfDay}`} />
       <div className="lake-waves" />
 
@@ -581,15 +598,15 @@ export default function App() {
                           </div>
                           <div className="flex flex-col items-center">
                             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-80">Water Temperature</span>
-                            <span className="text-7xl font-light tracking-tighter text-on-surface">{data?.status === "ACTIVE" ? Math.round(unit === "F" ? data?.tempF || 0 : data?.tempC || 0) : "--"}°</span>
+                            <span className="text-7xl font-light tracking-tighter text-on-surface">{data?.status === "ACTIVE" ? Math.round((unit === "F" ? data?.tempF : data?.tempC) ?? 0) : "--"}°</span>
                           </div>
                         </div>
                         <p className="text-xl font-medium text-on-surface mt-2">{data?.status === "ACTIVE" ? `${data?.condition} Conditions` : "Sensor Offline"}</p>
                         <div className="flex gap-3 mt-1 text-on-surface-variant font-medium">
                           {data?.status === "ACTIVE" && (
                             <>
-                              <span>H:{Math.round((unit === "F" ? data?.tempF : data?.tempC) || 0) + 2}°</span>
-                              <span>L:{Math.round((unit === "F" ? data?.tempF : data?.tempC) || 0) - 3}°</span>
+                              <span>H:{Math.round(((unit === "F" ? data?.tempF : data?.tempC) ?? 0) + 2)}°</span>
+                              <span>L:{Math.round(((unit === "F" ? data?.tempF : data?.tempC) ?? 0) - 3)}°</span>
                             </>
                           )}
                         </div>
@@ -624,12 +641,13 @@ export default function App() {
                         time.setHours(time.getHours() + i);
                         const hour = time.getHours();
                         const displayHour = hour === 0 ? "12 AM" : hour > 12 ? `${hour - 12} PM` : hour === 12 ? "12 PM" : `${hour} AM`;
-                        const temp = Math.round((unit === "F" ? data?.tempF : data?.tempC) || 0) + (Math.sin(i / 2) * 2);
+                        const baseTemp = (unit === "F" ? data?.tempF : data?.tempC) ?? 0;
+                        const temp = Math.round(baseTemp) + (Math.sin(i / 2) * 2);
                         return (
                           <div key={i} className="flex flex-col items-center gap-3 min-w-[40px]">
                             <span className="text-[10px] font-bold text-on-surface-variant uppercase">{i === 0 ? "Now" : displayHour.split(' ')[0]}</span>
                             <Thermometer className="w-4 h-4 text-primary opacity-60" />
-                            <span className="text-sm font-bold text-on-surface">{Math.round(temp)}°</span>
+                            <span className="text-sm font-bold text-on-surface">{isNaN(temp) ? "--" : Math.round(temp)}°</span>
                           </div>
                         );
                       })}
@@ -645,13 +663,13 @@ export default function App() {
                         <span className="text-[10px] font-bold uppercase tracking-widest">Swim Suitability</span>
                       </div>
                       <div className="space-y-2">
-                        <div className={`flex items-center gap-2 text-2xl font-semibold tracking-tight ${Math.round(data?.tempF || 0) < 60 ? "text-red-500" : Math.round(data?.tempF || 0) < 70 ? "text-orange-500" : "text-green-500"}`}>
-                          {Math.round(data?.tempF || 0) < 60 ? (
+                        <div className={`flex items-center gap-2 text-2xl font-semibold tracking-tight ${Math.round(data?.tempF ?? 0) < 60 ? "text-red-500" : Math.round(data?.tempF ?? 0) < 70 ? "text-orange-500" : "text-green-500"}`}>
+                          {Math.round(data?.tempF ?? 0) < 60 ? (
                             <>
                               <AlertTriangle className="w-6 h-6" />
                               <span>Dangerous</span>
                             </>
-                          ) : Math.round(data?.tempF || 0) < 70 ? (
+                          ) : Math.round(data?.tempF ?? 0) < 70 ? (
                             <>
                               <AlertCircle className="w-6 h-6" />
                               <span>Caution</span>
@@ -664,9 +682,9 @@ export default function App() {
                           )}
                         </div>
                         <p className="text-xs text-on-surface-variant opacity-70 leading-relaxed font-medium">
-                          {Math.round(data?.tempF || 0) < 60 
+                          {Math.round(data?.tempF ?? 0) < 60 
                             ? "Extreme cold shock risk. Wetsuit mandatory." 
-                            : Math.round(data?.tempF || 0) < 70 
+                            : Math.round(data?.tempF ?? 0) < 70 
                               ? "Cold water shock risk. Limit exposure." 
                               : "Comfortable swimming conditions."}
                         </p>
@@ -680,7 +698,9 @@ export default function App() {
                         <span className="text-[10px] font-bold uppercase tracking-widest">Wind</span>
                       </div>
                       <div className="flex flex-col items-center">
-                        <p className="text-4xl font-black text-on-surface">{data?.status === "ACTIVE" ? data?.windSpeed : "0"}</p>
+                        <p className="text-4xl font-black text-on-surface">
+                          {data?.status === "ACTIVE" ? (isNaN(Number(data?.windSpeed)) ? "0" : data?.windSpeed) : "0"}
+                        </p>
                         <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">MPH</p>
                       </div>
                     </div>
@@ -692,22 +712,24 @@ export default function App() {
                         <span className="text-[10px] font-bold uppercase tracking-widest">Air Temp</span>
                       </div>
                       <div className="flex flex-col items-center">
-                        <p className="text-4xl font-black text-on-surface">{data?.status === "ACTIVE" ? Math.round(unit === "F" ? data?.airTempF || 0 : data?.airTempC || 0) : "--"}°</p>
+                        <p className="text-4xl font-black text-on-surface">{data?.status === "ACTIVE" ? Math.round((unit === "F" ? data?.airTempF : data?.airTempC) ?? 0) : "--"}°</p>
                         <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">Surface Level</p>
                       </div>
                     </div>
 
                     {/* Precipitation */}
-                    <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                      <div className="flex items-center gap-2 text-on-surface-variant mb-6">
-                        <CloudRain className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Precipitation</span>
+                    {currentPrecipitationAvailable && (
+                      <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
+                        <div className="flex items-center gap-2 text-on-surface-variant mb-6">
+                          <CloudRain className="w-4 h-4" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest">Precipitation</span>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <p className="text-2xl font-black text-on-surface">{data?.status === "ACTIVE" ? `${(data?.precipitation ?? 0) || 0}"` : "--"}</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">Past Hour</p>
+                        </div>
                       </div>
-                      <div className="flex flex-col items-center">
-                        <p className="text-2xl font-black text-on-surface">{data?.status === "ACTIVE" ? `${data?.precipitation || 0}"` : "--"}</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">Past Hour</p>
-                      </div>
-                    </div>
+                    )}
 
                     {/* Pressure */}
                     <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
@@ -722,16 +744,18 @@ export default function App() {
                     </div>
 
                     {/* Humidity */}
-                    <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                      <div className="flex items-center gap-2 text-on-surface-variant mb-6">
-                        <Droplets className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Humidity</span>
+                    {currentHumidityAvailable && (
+                      <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
+                        <div className="flex items-center gap-2 text-on-surface-variant mb-6">
+                          <Droplets className="w-4 h-4" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest">Humidity</span>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <p className="text-2xl font-black text-on-surface">{data?.status === "ACTIVE" ? `${Math.round(data?.humidity ?? 0)}%` : "--"}</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">Relative Humidity</p>
+                        </div>
                       </div>
-                      <div className="flex flex-col items-center">
-                        <p className="text-2xl font-black text-on-surface">{data?.status === "ACTIVE" ? `${Math.round(data?.humidity || 0)}%` : "--"}</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">Relative Humidity</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </motion.div>
               )
@@ -801,7 +825,12 @@ export default function App() {
                           <span className="text-[10px] font-bold uppercase tracking-widest">Temperature Trend</span>
                         </div>
                       </div>
-                      <div className="h-64 w-full">
+                      <div className="h-64 w-full relative">
+                        {history.length > 0 && !history.some(p => (unit === "F" ? p.tempF : p.tempC) != null) && (
+                          <div className="absolute inset-0 flex items-center justify-center z-10 bg-surface/50 backdrop-blur-[2px] rounded-xl">
+                            <p className="text-xs font-bold text-on-surface-variant opacity-60 uppercase tracking-widest">No Temperature Data Available</p>
+                          </div>
+                        )}
                         <ResponsiveContainer width="100%" height="100%">
                           <AreaChart data={history}>
                             <defs>
@@ -818,8 +847,8 @@ export default function App() {
                             <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
                             <YAxis domain={['auto', 'auto']} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}°`} opacity={0.5} />
                             <Tooltip contentStyle={{ backgroundColor: isDark ? 'rgba(28, 28, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '16px', fontSize: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} itemStyle={{ fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
-                            <Area type="monotone" name="Water Temp" dataKey={unit === "F" ? "tempF" : "tempC"} stroke="#007aff" strokeWidth={3} fillOpacity={1} fill="url(#colorWaterHist)" />
-                            <Area type="monotone" name="Air Temp" dataKey={unit === "F" ? "airTempF" : "airTempC"} stroke="#fb923c" strokeWidth={2} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorAirHist)" />
+                            <Area type="monotone" name="Water Temp" dataKey={unit === "F" ? "tempF" : "tempC"} stroke="#007aff" strokeWidth={3} fillOpacity={1} fill="url(#colorWaterHist)" connectNulls />
+                            <Area type="monotone" name="Air Temp" dataKey={unit === "F" ? "airTempF" : "airTempC"} stroke="#fb923c" strokeWidth={2} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorAirHist)" connectNulls />
                           </AreaChart>
                         </ResponsiveContainer>
                       </div>
@@ -831,7 +860,12 @@ export default function App() {
                         <Wind className="w-4 h-4" />
                         <span className="text-[10px] font-bold uppercase tracking-widest">Wind Speed (MPH)</span>
                       </div>
-                      <div className="h-48 w-full">
+                      <div className="h-48 w-full relative">
+                        {history.length > 0 && !history.some(p => p.windSpeed != null) && (
+                          <div className="absolute inset-0 flex items-center justify-center z-10 bg-surface/50 backdrop-blur-[2px] rounded-xl">
+                            <p className="text-xs font-bold text-on-surface-variant opacity-60 uppercase tracking-widest">No Wind Data</p>
+                          </div>
+                        )}
                         <ResponsiveContainer width="100%" height="100%">
                           <AreaChart data={history}>
                             <defs>
@@ -844,60 +878,78 @@ export default function App() {
                             <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
                             <YAxis stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
                             <Tooltip contentStyle={{ backgroundColor: isDark ? 'rgba(28, 28, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '16px', fontSize: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} itemStyle={{ color: '#10b981', fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
-                            <Area type="monotone" name="Wind Speed" dataKey="windSpeed" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorWindHist)" />
+                            <Area type="monotone" name="Wind Speed" dataKey="windSpeed" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorWindHist)" connectNulls />
                           </AreaChart>
                         </ResponsiveContainer>
                       </div>
                     </section>
 
                     {/* Precipitation */}
-                    <section className="bg-surface-container-highest/30 rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                      <div className="flex items-center gap-2 mb-6 text-on-surface-variant">
-                        <CloudRain className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Precipitation (Inches)</span>
-                      </div>
-                      <div className="h-40 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={history}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
-                            <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
-                            <YAxis stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}"`} opacity={0.5} />
-                            <Tooltip contentStyle={{ backgroundColor: isDark ? 'rgba(28, 28, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '16px', fontSize: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} itemStyle={{ color: '#3b82f6', fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
-                            <Bar name="Precipitation" dataKey="precipitation" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </section>
+                    {hasPrecipitationData && (
+                      <section className="bg-surface-container-highest/30 rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
+                        <div className="flex items-center gap-2 mb-6 text-on-surface-variant">
+                          <CloudRain className="w-4 h-4" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest">Precipitation (Inches)</span>
+                        </div>
+                        <div className="h-40 w-full relative">
+                          {history.length > 0 && !history.some(p => p.precipitation != null && p.precipitation !== 0) && (
+                            <div className="absolute inset-0 flex items-center justify-center z-10 bg-surface/50 backdrop-blur-[2px] rounded-xl">
+                              <p className="text-xs font-bold text-on-surface-variant opacity-60 uppercase tracking-widest">No Precipitation Recorded</p>
+                            </div>
+                          )}
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={history}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
+                              <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
+                              <YAxis stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}"`} opacity={0.5} />
+                              <Tooltip contentStyle={{ backgroundColor: isDark ? 'rgba(28, 28, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '16px', fontSize: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} itemStyle={{ color: '#3b82f6', fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
+                              <Bar name="Precipitation" dataKey="precipitation" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </section>
+                    )}
 
                     {/* Humidity */}
-                    <section className="bg-surface-container-highest/30 rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                      <div className="flex items-center gap-2 mb-6 text-on-surface-variant">
-                        <Droplets className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Humidity Trend (%)</span>
-                      </div>
-                      <div className="h-40 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={history}>
-                            <defs>
-                              <linearGradient id="colorHumHist" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
-                            <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
-                            <YAxis domain={[0, 100]} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}%`} opacity={0.5} />
-                            <Tooltip contentStyle={{ backgroundColor: isDark ? 'rgba(28, 28, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '16px', fontSize: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} itemStyle={{ color: '#8b5cf6', fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
-                            <Area type="monotone" name="Humidity" dataKey="humidity" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorHumHist)" />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </section>
+                    {hasHumidityData && (
+                      <section className="bg-surface-container-highest/30 rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
+                        <div className="flex items-center gap-2 mb-6 text-on-surface-variant">
+                          <Droplets className="w-4 h-4" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest">Humidity Trend (%)</span>
+                        </div>
+                        <div className="h-40 w-full relative">
+                          {history.length > 0 && !history.some(p => p.humidity != null) && (
+                            <div className="absolute inset-0 flex items-center justify-center z-10 bg-surface/50 backdrop-blur-[2px] rounded-xl">
+                              <p className="text-xs font-bold text-on-surface-variant opacity-60 uppercase tracking-widest">No Humidity Data</p>
+                            </div>
+                          )}
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={history}>
+                              <defs>
+                                <linearGradient id="colorHumHist" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
+                              <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
+                              <YAxis domain={[0, 100]} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}%`} opacity={0.5} />
+                              <Tooltip contentStyle={{ backgroundColor: isDark ? 'rgba(28, 28, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '16px', fontSize: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} itemStyle={{ color: '#8b5cf6', fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
+                              <Area type="monotone" name="Humidity" dataKey="humidity" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorHumHist)" connectNulls />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </section>
+                    )}
                   </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-20 bg-surface-container-highest/10 rounded-[2rem] border border-dashed border-on-surface-variant/20 text-center px-6">
                       <div className="relative">
-                        <Database className="w-12 h-12 text-primary opacity-20 mb-4" />
+                        {isSelectedBuoyOffline && history.length === 0 ? (
+                          <WifiOff className="w-12 h-12 text-orange-500 opacity-40 mb-4" />
+                        ) : (
+                          <Database className="w-12 h-12 text-primary opacity-20 mb-4" />
+                        )}
                         {history.length > 0 && (
                           <div className="absolute -top-1 -right-1 bg-primary text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center animate-bounce shadow-lg">
                             {history.length}
@@ -905,12 +957,18 @@ export default function App() {
                         )}
                       </div>
                       <p className="text-on-surface-variant font-medium opacity-60">
-                        {history.length === 0 ? "Building historical record..." : "Almost ready..."}
+                        {isSelectedBuoyOffline && history.length === 0 
+                          ? "Buoy Currently Offline" 
+                          : history.length === 0 
+                            ? "Building historical record..." 
+                            : "Almost ready..."}
                       </p>
                       <p className="text-[10px] uppercase tracking-widest text-on-surface-variant opacity-40 mt-2 max-w-[200px]">
-                        {history.length === 0 
-                          ? "Data is now being collected in real-time and synced across all devices."
-                          : `Collected ${history.length} of 2 points needed to draw trend lines. Refreshing data...`}
+                        {isSelectedBuoyOffline && history.length === 0
+                          ? "This sensor is not currently transmitting data. Historical collection will resume once it's back online."
+                          : history.length === 0 
+                            ? "Data is now being collected in real-time and synced across all devices."
+                            : `Collected ${history.length} of 2 points needed to draw trend lines. Refreshing data...`}
                       </p>
                     </div>
                   )}

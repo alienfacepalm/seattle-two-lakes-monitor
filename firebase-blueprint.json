@@ -14,7 +14,8 @@
         "airTempF": { "type": "number" },
         "windSpeed": { "type": "number" },
         "precipitation": { "type": "number" },
-        "humidity": { "type": "number" }
+        "humidity": { "type": "number" },
+        "serverTime": { "type": "string", "format": "date-time", "description": "Server-side timestamp" }
       },
       "required": ["buoyId", "timestamp", "recordedAt"]
     }

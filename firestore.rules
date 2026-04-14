@@ -40,13 +40,14 @@ service cloud.firestore {
              data.buoyId is string && data.buoyId.size() > 0 && data.buoyId.size() < 100 &&
              isValidDateString(data.timestamp) &&
              isValidDateString(data.recordedAt) &&
-             (!('tempC' in data) || data.tempC is number) &&
-             (!('tempF' in data) || data.tempF is number) &&
-             (!('airTempC' in data) || data.airTempC is number) &&
-             (!('airTempF' in data) || data.airTempF is number) &&
-             (!('windSpeed' in data) || data.windSpeed is number) &&
-             (!('precipitation' in data) || data.precipitation is number) &&
-             (!('humidity' in data) || data.humidity is number);
+             (!('tempC' in data) || data.tempC is number || data.tempC == null) &&
+             (!('tempF' in data) || data.tempF is number || data.tempF == null) &&
+             (!('airTempC' in data) || data.airTempC is number || data.airTempC == null) &&
+             (!('airTempF' in data) || data.airTempF is number || data.airTempF == null) &&
+             (!('windSpeed' in data) || data.windSpeed is number || data.windSpeed == null) &&
+             (!('precipitation' in data) || data.precipitation is number || data.precipitation == null) &&
+             (!('humidity' in data) || data.humidity is number || data.humidity == null) &&
+             (!('serverTime' in data) || data.serverTime is timestamp);
     }
 
     // ===============================================================
