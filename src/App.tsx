@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useLayoutEffect } from "react";
+import React, { useState, useEffect, useCallback, useLayoutEffect, Component } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLocation, useNavigate, Routes, Route, Navigate, Link } from "react-router-dom";
 import { 
@@ -59,121 +59,11 @@ import {
 } from "firebase/firestore";
 import { signInAnonymously, onAuthStateChanged, User } from "firebase/auth";
 
-interface BuoyData {
-  location: string;
-  tempC: number;
-  tempF: number;
-  airTempC: number | null;
-  airTempF: number | null;
-  windSpeed: number | null;
-  precipitation: number | null;
-  humidity: number | null;
-  timestamp: string;
-  status: string;
-  condition: string;
-  lastSync: string;
-  lat: number | null;
-  lon: number | null;
-  sunrise?: string;
-  sunset?: string;
-  hourlyForecast?: Array<{
-    time: string;
-    temp: number;
-    condition: string;
-    isDaytime: boolean;
-    windSpeed: string;
-    windDirection?: string;
-    icon: string;
-    precipitationProbability: number;
-    humidity: number | null;
-    dewpoint: number | null;
-  }>;
-  dailyForecast?: Array<{
-    name: string;
-    temp: number;
-    isDaytime: boolean;
-    icon: string;
-    shortForecast: string;
-    detailedForecast: string;
-    precipitationProbability: number;
-  }>;
-  alerts?: Array<{
-    event: string;
-    severity: string;
-    headline: string;
-    description: string;
-    instruction: string;
-  }>;
-  radarStation?: string;
-}
-
-interface MapBuoy {
-  id: string;
-  name: string;
-  tempC: number | null;
-  tempF: number | null;
-  lat: number;
-  lon: number;
-  active: boolean;
-}
-
-interface HistoryPoint {
-  time: string;
-  tempC: number;
-  tempF: number;
-  airTempC?: number;
-  airTempF?: number;
-  precipitation?: number;
-  windSpeed?: number;
-  humidity?: number;
-}
-
-const getConditionIcon = (condition: string) => {
-  if (condition === "Warm") return <ThermometerSun className="w-12 h-12 text-yellow-400" />;
-  if (condition === "Moderate") return <Sun className="w-12 h-12 text-orange-400" />;
-  if (condition === "Cold") return <ThermometerSnowflake className="w-12 h-12 text-blue-400" />;
-  if (condition === "Cloudy") return <Cloud className="w-12 h-12 text-gray-400" />;
-  if (condition === "Overcast") return <CloudyIcon className="w-12 h-12 text-slate-500" opacity={0.8} />;
-  if (condition === "Windy") return <Wind className="w-12 h-12 text-blue-300" />;
-  if (condition === "Rainy") return <CloudRain className="w-12 h-12 text-blue-500" />;
-  if (condition === "Showers") return <CloudDrizzle className="w-12 h-12 text-blue-400 opacity-80" />;
-  return <Waves className="w-12 h-12 text-on-surface-variant opacity-40" />;
-};
-
-const getBuoyBackground = () => {
-  return "https://images.unsplash.com/photo-1439066615861-d1af74d74000?auto=format&fit=crop&w=1200&q=80";
-};
-
-const IconGallery = () => {
-  const conditions = ["Warm", "Moderate", "Cold", "Cloudy", "Overcast", "Windy", "Rainy", "Showers", "Unknown"];
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      className="space-y-6"
-    >
-      <div className="bg-surface-container-low rounded-[2rem] p-8 shadow-sm border border-black/5 dark:border-white/5">
-        <h2 className="text-2xl font-black text-on-surface mb-2 font-headline uppercase tracking-tight">Condition Icons</h2>
-        <p className="text-sm text-on-surface-variant opacity-70 mb-8">A gallery of all possible weather condition icons used in the app.</p>
-        
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {conditions.map(c => (
-            <div key={c} className="bg-surface-container-highest/50 rounded-2xl p-6 flex flex-col items-center gap-4 border border-black/5 dark:border-white/5">
-              <div className="w-20 h-20 rounded-full bg-surface flex items-center justify-center shadow-inner">
-                {getConditionIcon(c)}
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-bold text-on-surface">{c}</p>
-                <p className="text-[9px] font-black text-on-surface-variant uppercase tracking-[0.2em] mt-1 opacity-60">Icon Preview</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </motion.div>
-  );
-};
+import { BuoyData, MapBuoy, HistoryPoint } from "./types";
+import { BUOY_CONFIGS } from "./constants";
+import { getConditionIcon, getBuoyBackground } from "./lib/utils";
+import { IconGallery } from "./components/IconGallery";
+import { HistoryCharts } from "./components/HistoryCharts";
 
 enum OperationType {
   CREATE = 'create',
@@ -229,9 +119,59 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 function ScrollToTop() {
   const { pathname } = useLocation();
   useLayoutEffect(() => {
-    window.scrollTo(0, 0);
+    const main = document.querySelector('main');
+    if (main) main.scrollTo(0, 0);
   }, [pathname]);
   return null;
+}
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
+  public state: { hasError: boolean, error: any };
+  public props: { children: React.ReactNode };
+  
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("Uncaught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-surface flex items-center justify-center p-6 text-center">
+          <div className="max-w-md space-y-4">
+            <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-10 h-10 text-red-500" />
+            </div>
+            <h1 className="text-2xl font-black text-on-surface uppercase tracking-tight">Something went wrong</h1>
+            <p className="text-on-surface-variant opacity-70">
+              The application encountered an unexpected error. We've logged the details and are working on a fix.
+            </p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-8 py-3 bg-primary text-on-primary rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+            >
+              Reload Application
+            </button>
+            {process.env.NODE_ENV === 'development' && (
+              <pre className="mt-8 p-4 bg-black/5 dark:bg-white/5 rounded-xl text-[10px] text-left overflow-auto max-h-40 font-mono opacity-50">
+                {this.state.error?.message || String(this.state.error)}
+              </pre>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 export default function App() {
@@ -271,10 +211,34 @@ export default function App() {
   const selectedBuoyInfo = allBuoys.find(b => b.name === selectedBuoy);
   const isSelectedBuoyOffline = selectedBuoyInfo && !selectedBuoyInfo.active;
 
-  const hasHumidityData = history.some(p => p.humidity !== null && p.humidity !== undefined && !isNaN(p.humidity));
-  const currentHumidityAvailable = data?.humidity !== null && data?.humidity !== undefined && !isNaN(data.humidity);
-  const hasPrecipitationData = history.some(p => p.precipitation !== null && p.precipitation !== undefined && p.precipitation > 0);
-  const currentPrecipitationAvailable = data?.precipitation !== null && data?.precipitation !== undefined && data.precipitation > 0;
+  const humidityPoints = history.filter(p => p.humidity !== null && p.humidity !== undefined && !isNaN(p.humidity));
+  const hasHumidityData = humidityPoints.length > 0;
+  const avgHumidity = hasHumidityData ? humidityPoints.reduce((acc, p) => acc + (p.humidity ?? 0), 0) / humidityPoints.length : null;
+  const currentHumidityAvailable = (data?.humidity !== null && data?.humidity !== undefined && !isNaN(data.humidity)) || hasHumidityData;
+
+  const waterTempPoints = history.filter(p => p.tempC !== null && p.tempC !== undefined && !isNaN(p.tempC));
+  const hasWaterTempData = waterTempPoints.length > 0;
+  const lastWaterTempPoint = hasWaterTempData ? waterTempPoints[waterTempPoints.length - 1] : null;
+
+  const precipPoints = history.filter(p => p.precipitation !== null && p.precipitation !== undefined);
+  const hasPrecipitationRecords = precipPoints.length > 0;
+  const totalPrecipitation = precipPoints.reduce((acc, p) => acc + (p.precipitation ?? 0), 0);
+  const currentPrecipitationAvailable = (data?.precipitation !== null && data?.precipitation !== undefined) || hasPrecipitationRecords;
+
+  const airTempPoints = history.filter(p => p.airTempC !== null && p.airTempC !== undefined && !isNaN(p.airTempC));
+  const hasAirTempData = airTempPoints.length > 0;
+  const lastAirTempPoint = hasAirTempData ? airTempPoints[airTempPoints.length - 1] : null;
+  const avgAirTempC = hasAirTempData ? airTempPoints.reduce((acc, p) => acc + (p.airTempC ?? 0), 0) / airTempPoints.length : null;
+  const avgAirTempF = hasAirTempData ? airTempPoints.reduce((acc, p) => acc + (p.airTempF ?? 0), 0) / airTempPoints.length : null;
+
+  const windPoints = history.filter(p => p.windSpeed !== null && p.windSpeed !== undefined && !isNaN(p.windSpeed));
+  const hasWindData = windPoints.length > 0;
+  const lastWindPoint = hasWindData ? windPoints[windPoints.length - 1] : null;
+
+  const dewpointPoints = history.filter(p => p.dewpoint !== null && p.dewpoint !== undefined && !isNaN(p.dewpoint));
+  const hasDewpointData = dewpointPoints.length > 0;
+  const avgDewpoint = hasDewpointData ? dewpointPoints.reduce((acc, p) => acc + (p.dewpoint ?? 0), 0) / dewpointPoints.length : null;
+  const currentDewpointAvailable = (data?.dewpoint !== null && data?.dewpoint !== undefined) || (data?.hourlyForecast?.[0]?.dewpoint !== null && data?.hourlyForecast?.[0]?.dewpoint !== undefined) || hasDewpointData;
 
   useEffect(() => {
     localStorage.setItem("selectedBuoy", selectedBuoy);
@@ -326,6 +290,7 @@ export default function App() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log(`[Firestore] Received ${snapshot.size} history points for ${selectedBuoy}`);
       const historyData: HistoryPoint[] = snapshot.docs
         .map(doc => {
           const d = doc.data();
@@ -337,7 +302,10 @@ export default function App() {
             airTempF: d.airTempF,
             windSpeed: d.windSpeed,
             precipitation: d.precipitation,
-            humidity: d.humidity
+            humidity: d.humidity,
+            dewpoint: d.dewpoint,
+            dewpointF: d.dewpoint ? (d.dewpoint * 9/5 + 32) : null,
+            precipitationProbability: d.precipitationProbability
           };
         })
         .filter(p => p.time && !isNaN(new Date(p.time).getTime())) // Filter out invalid points
@@ -382,8 +350,10 @@ export default function App() {
           windSpeed: buoyData.windSpeed,
           precipitation: buoyData.precipitation,
           humidity: (buoyData.humidity === null || isNaN(buoyData.humidity)) ? null : buoyData.humidity,
-          lat: buoyData.lat,
-          lon: buoyData.lon,
+          dewpoint: buoyData.dewpoint || null,
+          precipitationProbability: buoyData.precipitationProbability || null,
+          lat: buoyData.lat ?? null,
+          lon: buoyData.lon ?? null,
           serverTime: serverTimestamp()
         });
         console.log("Snapshot saved to Firestore:", normalizedTimestamp);
@@ -479,6 +449,8 @@ export default function App() {
     }
     setRefreshing(true);
     setError(null);
+    setData(null); // Always clear data when fetching to avoid showing stale buoy data
+    
     try {
       const [currentRes, mapRes] = await Promise.all([
         fetch(`/api/buoy-data?buoy=${selectedBuoy}&t=${Date.now()}`, { cache: 'no-store' }),
@@ -519,12 +491,13 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen pb-32 transition-colors duration-300 bg-surface">
+    <ErrorBoundary>
+      <div className="h-screen flex flex-col overflow-hidden transition-colors duration-300 bg-surface relative">
       <ScrollToTop />
       <div className={`lake-bg lake-bg-${timeOfDay}`} />
       <div className="lake-waves" />
 
-      <header className="fixed top-0 w-full z-50 bg-surface/70 backdrop-blur-2xl flex items-center justify-between px-4 sm:px-6 h-16 border-b border-black/5 dark:border-white/5">
+      <header className="shrink-0 z-50 bg-surface/70 backdrop-blur-2xl flex items-center justify-between px-4 sm:px-6 min-h-[4rem] border-b border-black/5 dark:border-white/5 pt-safe">
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="relative shrink-0">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -551,7 +524,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="pt-20 px-4 max-w-4xl mx-auto">
+      <main className="flex-1 overflow-y-auto px-4 pt-6 pb-32 max-w-4xl mx-auto w-full no-scrollbar relative">
         <AnimatePresence mode="wait">
           <Routes location={location}>
             <Route path="/" element={
@@ -655,15 +628,23 @@ export default function App() {
                           </div>
                           <div className="flex flex-col items-center">
                             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-80">Water Temperature</span>
-                            <span className="text-7xl font-light tracking-tighter text-on-surface">{data?.status === "ACTIVE" ? Math.round((unit === "F" ? data?.tempF : data?.tempC) ?? 0) : "--"}°</span>
+                            <span className="text-7xl font-light tracking-tighter text-on-surface">
+                              {data?.tempC !== null && data?.tempC !== undefined
+                                ? `${Math.round(unit === "F" ? (data.tempF ?? 0) : (data.tempC ?? 0))}°`
+                                : (data?.status === "ACTIVE" ? "--" : (lastWaterTempPoint ? `${Math.round(unit === "F" ? (lastWaterTempPoint.tempF ?? 0) : (lastWaterTempPoint.tempC ?? 0))}°` : "--"))}
+                            </span>
                           </div>
                         </div>
-                        <p className="text-xl font-medium text-on-surface mt-2">{data?.status === "ACTIVE" ? `${data?.condition} Conditions` : "Sensor Offline"}</p>
+                        <p className="text-xl font-medium text-on-surface mt-2 text-center">
+                          {data?.status === "ACTIVE" 
+                            ? (data?.tempC === null || data?.tempC === undefined ? "Water Temp Unavailable" : `${data?.condition} Conditions`) 
+                            : (lastWaterTempPoint ? "Last Recorded" : "Sensor Offline")}
+                        </p>
                         <div className="flex gap-3 mt-1 text-on-surface-variant font-medium">
-                          {data?.status === "ACTIVE" && (
+                          {(data?.tempC !== null || lastWaterTempPoint) && (
                             <>
-                              <span>H:{Math.round(((unit === "F" ? data?.tempF : data?.tempC) ?? 0) + 2)}°</span>
-                              <span>L:{Math.round(((unit === "F" ? data?.tempF : data?.tempC) ?? 0) - 3)}°</span>
+                              <span>H:{Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) + 2)}°</span>
+                              <span>L:{Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) - 3)}°</span>
                             </>
                           )}
                         </div>
@@ -703,7 +684,7 @@ export default function App() {
                   <section className="bg-surface-container-low rounded-[2rem] p-6 mt-6 shadow-sm border border-black/5 dark:border-white/5">
                     <div className="flex items-center gap-2 text-on-surface-variant mb-6">
                       <Clock className="w-4 h-4" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Hourly Forecast</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest">Hourly Forecast (Air Temp)</span>
                     </div>
                     <div className="flex overflow-x-auto pb-2 gap-6 no-scrollbar">
                       {data?.hourlyForecast && data.hourlyForecast.length > 0 ? (
@@ -716,7 +697,17 @@ export default function App() {
                             <div key={i} className="flex flex-col items-center gap-3 min-w-[80px] sm:min-w-[100px]">
                               <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{i === 0 ? "Now" : displayHour.split(' ')[0]}</span>
                               <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 relative group/h overflow-hidden shadow-sm">
-                                <img src={p.icon} alt={p.condition} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                <img 
+                                  src={p.icon} 
+                                  alt={p.condition} 
+                                  className="w-full h-[220%] object-cover object-top" 
+                                  referrerPolicy="no-referrer" 
+                                />
+                                {p.precipitationProbability > 0 && (
+                                  <div className="absolute bottom-1 right-1 bg-primary/90 backdrop-blur-sm text-white text-[8px] font-black px-1.5 py-0.5 rounded-md shadow-sm border border-white/10">
+                                    {p.precipitationProbability}%
+                                  </div>
+                                )}
                               </div>
                               <div className="flex flex-col items-center">
                                 <span className="text-base font-black text-on-surface">{isNaN(temp) ? "--" : Math.round(temp)}°</span>
@@ -752,15 +743,25 @@ export default function App() {
                     <section className="bg-surface-container-low rounded-[2rem] p-6 mt-6 shadow-sm border border-black/5 dark:border-white/5">
                       <div className="flex items-center gap-2 text-on-surface-variant mb-6">
                         <HistoryIcon className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">7-Day Outlook</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest">7-Day Outlook (Air Temp)</span>
                       </div>
                       <div className="space-y-4">
                         {data.dailyForecast.slice(0, 10).map((day, idx) => (
                           <div key={idx} className="flex items-center justify-between group/day">
                             <div className="flex items-center gap-4 min-w-[120px]">
                               <span className="text-xs font-bold text-on-surface w-24">{day.name}</span>
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 overflow-hidden shadow-sm">
-                                <img src={day.icon} alt={day.shortForecast} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 overflow-hidden shadow-sm relative">
+                                <img 
+                                  src={day.icon} 
+                                  alt={day.shortForecast} 
+                                  className="w-full h-[220%] object-cover object-top" 
+                                  referrerPolicy="no-referrer" 
+                                />
+                                {day.precipitationProbability > 0 && (
+                                  <div className="absolute bottom-0.5 right-0.5 bg-primary/90 backdrop-blur-sm text-white text-[7px] font-black px-1 py-0.5 rounded-sm shadow-sm border border-white/10">
+                                    {day.precipitationProbability}%
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="flex-1 px-4">
@@ -784,13 +785,18 @@ export default function App() {
                         <span className="text-[10px] font-bold uppercase tracking-widest">Swim Suitability</span>
                       </div>
                       <div className="space-y-2">
-                        <div className={`flex items-center gap-2 text-2xl font-semibold tracking-tight ${Math.round(data?.tempF ?? 0) < 60 ? "text-red-500" : Math.round(data?.tempF ?? 0) < 70 ? "text-orange-500" : "text-green-500"}`}>
-                          {Math.round(data?.tempF ?? 0) < 60 ? (
+                        <div className={`flex items-center gap-2 text-2xl font-semibold tracking-tight ${data?.tempF === null && data?.status === "ACTIVE" ? "text-on-surface-variant opacity-50" : (Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 60 ? "text-red-500" : Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 70 ? "text-orange-500" : "text-green-500")}`}>
+                          {data?.tempF === null && data?.status === "ACTIVE" ? (
+                            <>
+                              <WifiOff className="w-6 h-6" />
+                              <span>Unknown</span>
+                            </>
+                          ) : Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 60 ? (
                             <>
                               <AlertTriangle className="w-6 h-6" />
                               <span>Dangerous</span>
                             </>
-                          ) : Math.round(data?.tempF ?? 0) < 70 ? (
+                          ) : Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 70 ? (
                             <>
                               <AlertCircle className="w-6 h-6" />
                               <span>Caution</span>
@@ -803,11 +809,13 @@ export default function App() {
                           )}
                         </div>
                         <p className="text-xs text-on-surface-variant opacity-70 leading-relaxed font-medium">
-                          {Math.round(data?.tempF ?? 0) < 60 
-                            ? "Extreme cold shock risk. Wetsuit mandatory." 
-                            : Math.round(data?.tempF ?? 0) < 70 
-                              ? "Cold water shock risk. Limit exposure." 
-                              : "Comfortable swimming conditions."}
+                          {data?.tempF === null && data?.status === "ACTIVE"
+                            ? "Water temperature sensor is currently offline. Suitability cannot be determined."
+                            : Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 60 
+                              ? "Extreme cold shock risk. Wetsuit mandatory." 
+                              : Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 70 
+                                ? "Cold water shock risk. Limit exposure." 
+                                : "Comfortable swimming conditions."}
                         </p>
                       </div>
                     </div>
@@ -820,21 +828,49 @@ export default function App() {
                       </div>
                       <div className="flex flex-col items-center">
                         <p className="text-4xl font-black text-on-surface">
-                          {data?.status === "ACTIVE" ? (isNaN(Number(data?.windSpeed)) ? "0" : data?.windSpeed) : "0"}
+                          {data?.windSpeed !== null && data?.windSpeed !== undefined && !isNaN(Number(data.windSpeed))
+                            ? data.windSpeed
+                            : (lastWindPoint ? lastWindPoint.windSpeed : "0")}
                         </p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">MPH</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">
+                          {data?.windSpeed !== null && data?.windSpeed !== undefined ? "MPH" : "Last Hour"}
+                        </p>
                       </div>
                     </div>
 
                     {/* Air Temp */}
                     <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
                       <div className="flex items-center gap-2 text-on-surface-variant mb-6">
-                        <Sun className="w-4 h-4" />
+                        <ThermometerSun className="w-4 h-4" />
                         <span className="text-[10px] font-bold uppercase tracking-widest">Air Temp</span>
                       </div>
                       <div className="flex flex-col items-center">
-                        <p className="text-4xl font-black text-on-surface">{data?.status === "ACTIVE" ? Math.round((unit === "F" ? data?.airTempF : data?.airTempC) ?? 0) : "--"}°</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">Surface Level</p>
+                        <p className="text-4xl font-black text-on-surface">
+                          {data?.airTempC !== null && data?.airTempC !== undefined
+                            ? Math.round(unit === "F" ? (data.airTempF ?? 0) : (data.airTempC ?? 0))
+                            : (lastAirTempPoint ? Math.round(unit === "F" ? (lastAirTempPoint.airTempF ?? 0) : (lastAirTempPoint.airTempC ?? 0)) : "--")}°
+                        </p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">
+                          {data?.airTempC !== null && data?.airTempC !== undefined ? "Surface Level" : "Last Hour"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Dew Point */}
+                    <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
+                      <div className="flex items-center gap-2 text-on-surface-variant mb-6">
+                        <ThermometerSnowflake className="w-4 h-4" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Dew Point</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <p className="text-4xl font-black text-on-surface">
+                          {data?.dewpoint !== null && data?.dewpoint !== undefined
+                            ? Math.round(unit === "F" ? (data.dewpoint * 9/5 + 32) : data.dewpoint)
+                            : (avgDewpoint !== null ? Math.round(unit === "F" ? (avgDewpoint * 9/5 + 32) : avgDewpoint) : "--")}°
+                        </p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">
+                          {data?.dewpoint !== null ? "Atmospheric" : "24h Average"}
+                        </p>
                       </div>
                     </div>
 
@@ -846,27 +882,17 @@ export default function App() {
                           <span className="text-[10px] font-bold uppercase tracking-widest">Precipitation</span>
                         </div>
                         <div className="flex flex-col items-center">
-                          <p className="text-2xl font-black text-on-surface">{data?.status === "ACTIVE" ? `${(data?.precipitation ?? 0) || 0}"` : "--"}</p>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">Past Hour</p>
+                          <p className="text-2xl font-black text-on-surface">
+                            {data?.precipitation !== null && data?.precipitation !== undefined
+                              ? `${data.precipitation}"` 
+                              : (hasPrecipitationRecords ? `${totalPrecipitation.toFixed(2)}"` : "--")}
+                          </p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">
+                            {data?.precipitation !== null && data?.precipitation !== undefined ? "Past Hour" : "24h Total"}
+                          </p>
                         </div>
                       </div>
                     )}
-
-                    {/* Dew Point */}
-                    <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                      <div className="flex items-center gap-2 text-on-surface-variant mb-6">
-                        <ThermometerSnowflake className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Dew Point</span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <p className="text-2xl font-black text-on-surface">
-                          {data?.hourlyForecast?.[0]?.dewpoint 
-                            ? `${Math.round(unit === "F" ? (data.hourlyForecast[0].dewpoint * 9/5 + 32) : data.hourlyForecast[0].dewpoint)}°` 
-                            : "--"}
-                        </p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">Atmospheric</p>
-                      </div>
-                    </div>
 
                     {/* Sunrise & Sunset */}
                     {(data?.sunrise || data?.sunset) && (
@@ -910,8 +936,14 @@ export default function App() {
                           <span className="text-[10px] font-bold uppercase tracking-widest">Humidity</span>
                         </div>
                         <div className="flex flex-col items-center">
-                          <p className="text-2xl font-black text-on-surface">{data?.status === "ACTIVE" ? `${Math.round(data?.humidity ?? 0)}%` : "--"}</p>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">Relative Humidity</p>
+                          <p className="text-2xl font-black text-on-surface">
+                            {data?.humidity !== null && data?.humidity !== undefined
+                              ? `${Math.round(data.humidity)}%` 
+                              : (avgHumidity !== null ? `${Math.round(avgHumidity)}%` : "--")}
+                          </p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">
+                            {data?.humidity !== null && data?.humidity !== undefined ? "Relative Humidity" : "24h Average"}
+                          </p>
                         </div>
                       </div>
                     )}
@@ -975,132 +1007,14 @@ export default function App() {
                   </div>
                   
                   {history.length >= 2 ? (
-                    <div className="space-y-6">
-                    {/* Temperature Trend */}
-                    <section className="bg-surface-container-highest/30 rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-2 text-on-surface-variant">
-                          <HistoryIcon className="w-4 h-4" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest">Temperature Trend</span>
-                        </div>
-                      </div>
-                      <div className="h-64 w-full relative">
-                        {history.length > 0 && !history.some(p => (unit === "F" ? p.tempF : p.tempC) != null) && (
-                          <div className="absolute inset-0 flex items-center justify-center z-10 bg-surface/50 backdrop-blur-[2px] rounded-xl">
-                            <p className="text-xs font-bold text-on-surface-variant opacity-60 uppercase tracking-widest">No Temperature Data Available</p>
-                          </div>
-                        )}
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={history}>
-                            <defs>
-                              <linearGradient id="colorWaterHist" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#007aff" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#007aff" stopOpacity={0}/>
-                              </linearGradient>
-                              <linearGradient id="colorAirHist" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#fb923c" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#fb923c" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
-                            <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
-                            <YAxis domain={['auto', 'auto']} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}°`} opacity={0.5} />
-                            <Tooltip contentStyle={{ backgroundColor: isDark ? 'rgba(28, 28, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '16px', fontSize: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} itemStyle={{ fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
-                            <Area type="monotone" name="Water Temp" dataKey={unit === "F" ? "tempF" : "tempC"} stroke="#007aff" strokeWidth={3} fillOpacity={1} fill="url(#colorWaterHist)" connectNulls />
-                            <Area type="monotone" name="Air Temp" dataKey={unit === "F" ? "airTempF" : "airTempC"} stroke="#fb923c" strokeWidth={2} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorAirHist)" connectNulls />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </section>
-
-                    {/* Wind Speed Trend */}
-                    <section className="bg-surface-container-highest/30 rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                      <div className="flex items-center gap-2 mb-6 text-on-surface-variant">
-                        <Wind className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Wind Speed (MPH)</span>
-                      </div>
-                      <div className="h-48 w-full relative">
-                        {history.length > 0 && !history.some(p => p.windSpeed != null) && (
-                          <div className="absolute inset-0 flex items-center justify-center z-10 bg-surface/50 backdrop-blur-[2px] rounded-xl">
-                            <p className="text-xs font-bold text-on-surface-variant opacity-60 uppercase tracking-widest">No Wind Data</p>
-                          </div>
-                        )}
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={history}>
-                            <defs>
-                              <linearGradient id="colorWindHist" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
-                            <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
-                            <YAxis stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
-                            <Tooltip contentStyle={{ backgroundColor: isDark ? 'rgba(28, 28, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '16px', fontSize: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} itemStyle={{ color: '#10b981', fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
-                            <Area type="monotone" name="Wind Speed" dataKey="windSpeed" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorWindHist)" connectNulls />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </section>
-
-                    {/* Precipitation */}
-                    {hasPrecipitationData && (
-                      <section className="bg-surface-container-highest/30 rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                        <div className="flex items-center gap-2 mb-6 text-on-surface-variant">
-                          <CloudRain className="w-4 h-4" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest">Precipitation (Inches)</span>
-                        </div>
-                        <div className="h-40 w-full relative">
-                          {history.length > 0 && !history.some(p => p.precipitation != null && p.precipitation !== 0) && (
-                            <div className="absolute inset-0 flex items-center justify-center z-10 bg-surface/50 backdrop-blur-[2px] rounded-xl">
-                              <p className="text-xs font-bold text-on-surface-variant opacity-60 uppercase tracking-widest">No Precipitation Recorded</p>
-                            </div>
-                          )}
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={history}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
-                              <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
-                              <YAxis stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}"`} opacity={0.5} />
-                              <Tooltip contentStyle={{ backgroundColor: isDark ? 'rgba(28, 28, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '16px', fontSize: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} itemStyle={{ color: '#3b82f6', fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
-                              <Bar name="Precipitation" dataKey="precipitation" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </section>
-                    )}
-
-                    {/* Humidity */}
-                    {hasHumidityData && (
-                      <section className="bg-surface-container-highest/30 rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                        <div className="flex items-center gap-2 mb-6 text-on-surface-variant">
-                          <Droplets className="w-4 h-4" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest">Humidity Trend (%)</span>
-                        </div>
-                        <div className="h-40 w-full relative">
-                          {history.length > 0 && !history.some(p => p.humidity != null) && (
-                            <div className="absolute inset-0 flex items-center justify-center z-10 bg-surface/50 backdrop-blur-[2px] rounded-xl">
-                              <p className="text-xs font-bold text-on-surface-variant opacity-60 uppercase tracking-widest">No Humidity Data</p>
-                            </div>
-                          )}
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={history}>
-                              <defs>
-                                <linearGradient id="colorHumHist" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                                </linearGradient>
-                              </defs>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
-                              <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
-                              <YAxis domain={[0, 100]} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}%`} opacity={0.5} />
-                              <Tooltip contentStyle={{ backgroundColor: isDark ? 'rgba(28, 28, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '16px', fontSize: '12px', color: isDark ? '#fff' : '#000', backdropFilter: 'blur(10px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} itemStyle={{ color: '#8b5cf6', fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
-                              <Area type="monotone" name="Humidity" dataKey="humidity" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorHumHist)" connectNulls />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </section>
-                    )}
-                  </div>
+                    <HistoryCharts 
+                      history={history} 
+                      unit={unit} 
+                      isDark={isDark} 
+                      hasPrecipitationData={hasPrecipitationRecords} 
+                      hasHumidityData={hasHumidityData} 
+                      hasDewpointData={hasDewpointData}
+                    />
                   ) : (
                     <div className="flex flex-col items-center justify-center py-20 bg-surface-container-highest/10 rounded-[2rem] border border-dashed border-on-surface-variant/20 text-center px-6">
                       <div className="relative">
@@ -1159,10 +1073,12 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      <nav className="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pt-3 pb-8 bg-surface/80 backdrop-blur-2xl z-50 border-t border-black/5 dark:border-white/5">
-        <Link to="/" className={`flex flex-col items-center justify-center transition-all ${activeTab === "current" ? "text-primary" : "text-on-surface/40"}`}><LayoutDashboard className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">Dashboard</span></Link>
-        <Link to="/history" className={`flex flex-col items-center justify-center transition-all ${activeTab === "history" ? "text-primary" : "text-on-surface/40"}`}><HistoryIcon className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">History</span></Link>
-        <Link to="/network" className={`flex flex-col items-center justify-center transition-all ${activeTab === "map" ? "text-primary" : "text-on-surface/40"}`}><MapPin className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">Network</span></Link>
+      <nav className="shrink-0 z-50 bg-surface/80 backdrop-blur-xl border-t border-black/5 dark:border-white/5 pb-safe">
+        <div className="flex justify-around items-center px-4 pt-4 pb-6">
+          <Link to="/" className={`flex flex-col items-center justify-center transition-all ${activeTab === "current" ? "text-primary" : "text-on-surface/40"}`}><LayoutDashboard className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">Dashboard</span></Link>
+          <Link to="/history" className={`flex flex-col items-center justify-center transition-all ${activeTab === "history" ? "text-primary" : "text-on-surface/40"}`}><HistoryIcon className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">History</span></Link>
+          <Link to="/network" className={`flex flex-col items-center justify-center transition-all ${activeTab === "map" ? "text-primary" : "text-on-surface/40"}`}><MapPin className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">Network</span></Link>
+        </div>
       </nav>
 
       <AnimatePresence>
@@ -1200,5 +1116,6 @@ export default function App() {
         </div>
       </div>
     </div>
+    </ErrorBoundary>
   );
 }
