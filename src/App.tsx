@@ -906,27 +906,31 @@ export default function App() {
                           <span className="text-[10px] font-bold uppercase tracking-widest">Sun Cycle</span>
                         </div>
                         <div className="flex flex-col gap-4">
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center">
+                              <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center shrink-0">
                                 <Sun className="w-4 h-4 text-orange-500" />
                               </div>
                               <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant opacity-60">Sunrise</span>
                             </div>
-                            <span className="text-sm font-black text-on-surface">
-                              {data.sunrise ? new Date(data.sunrise).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
-                            </span>
+                            <div className="pl-10 sm:pl-0">
+                              <span className="text-sm font-black text-on-surface whitespace-nowrap">
+                                {data.sunrise ? new Date(data.sunrise).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                              <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
                                 <Moon className="w-4 h-4 text-indigo-500" />
                               </div>
                               <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant opacity-60">Sunset</span>
                             </div>
-                            <span className="text-sm font-black text-on-surface">
-                              {data.sunset ? new Date(data.sunset).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
-                            </span>
+                            <div className="pl-10 sm:pl-0">
+                              <span className="text-sm font-black text-on-surface whitespace-nowrap">
+                                {data.sunset ? new Date(data.sunset).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
