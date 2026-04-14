@@ -624,7 +624,11 @@ export default function App() {
                       <div className="mt-8 flex flex-col items-center">
                         <div className="flex items-center gap-4">
                           <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/10 shadow-sm">
-                            {getConditionIcon(data?.condition || "")}
+                            {(data?.tempC === null || data?.tempC === undefined) && data?.status === "ACTIVE" ? (
+                              <WifiOff className="w-8 h-8 text-on-surface-variant opacity-30" />
+                            ) : (
+                              getConditionIcon(data?.condition || "")
+                            )}
                           </div>
                           <div className="flex flex-col items-center">
                             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-80">Water Temperature</span>
@@ -747,10 +751,10 @@ export default function App() {
                       </div>
                       <div className="space-y-4">
                         {data.dailyForecast.slice(0, 10).map((day, idx) => (
-                          <div key={idx} className="flex items-center justify-between group/day">
-                            <div className="flex items-center gap-4 min-w-[120px]">
-                              <span className="text-xs font-bold text-on-surface w-24">{day.name}</span>
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 overflow-hidden shadow-sm relative">
+                          <div key={idx} className="flex items-center gap-4 group/day">
+                            <div className="flex items-center gap-4 w-[140px] sm:w-[170px] shrink-0">
+                              <span className="text-xs font-bold text-on-surface w-24 sm:w-32 shrink-0 inline-block truncate">{day.name}</span>
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 overflow-hidden shadow-sm relative shrink-0">
                                 <img 
                                   src={day.icon} 
                                   alt={day.shortForecast} 
@@ -764,10 +768,10 @@ export default function App() {
                                 )}
                               </div>
                             </div>
-                            <div className="flex-1 px-4">
+                            <div className="flex-1 min-w-0">
                               <p className="text-[10px] sm:text-xs font-medium text-on-surface-variant line-clamp-1 opacity-70 group-hover/day:opacity-100 transition-opacity">{day.shortForecast}</p>
                             </div>
-                            <div className="flex items-center gap-3 min-w-[60px] justify-end">
+                            <div className="flex items-center gap-3 w-12 sm:w-16 justify-end shrink-0">
                               <span className="text-sm sm:text-base font-black text-on-surface">{unit === "F" ? day.temp : Math.round((day.temp - 32) * 5/9)}°</span>
                             </div>
                           </div>
