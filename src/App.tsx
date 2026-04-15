@@ -524,7 +524,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 pt-6 pb-32 max-w-4xl mx-auto w-full no-scrollbar relative">
+      <main className="flex-1 overflow-y-auto px-4 pt-6 pb-32 max-w-4xl mx-auto w-full relative">
         <AnimatePresence mode="wait">
           <Routes location={location}>
             <Route path="/" element={
@@ -613,7 +613,7 @@ export default function App() {
                         <div>
                           <h2 className="text-2xl font-semibold text-on-surface">{data?.location?.endsWith("Buoy") ? data.location : `${data?.location} Buoy`}</h2>
                           <p className="text-on-surface-variant text-sm font-medium opacity-70">
-                            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                           </p>
                         </div>
                         <div className="flex gap-1 bg-surface-container-highest/50 backdrop-blur-md p-1 rounded-xl">
@@ -673,10 +673,10 @@ export default function App() {
                             </a>
                           )}
                           <div className="text-right group cursor-default">
-                            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface-variant opacity-70 group-hover:opacity-100 group-hover:text-on-surface transition-all duration-300">Updated {new Date(data?.timestamp || "").toLocaleDateString()} at {new Date(data?.timestamp || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface-variant opacity-70 group-hover:opacity-100 group-hover:text-on-surface transition-all duration-300">Updated {new Date(data?.timestamp || "").toLocaleDateString()} at {new Date(data?.timestamp || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</p>
                             <div className="flex items-center justify-end gap-1.5">
                               {isSyncing && <Database className="w-2.5 h-2.5 text-primary animate-pulse" />}
-                              <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface-variant opacity-50 group-hover:opacity-90 transition-all duration-300">Checked {lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
+                              <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface-variant opacity-50 group-hover:opacity-90 transition-all duration-300">Checked {lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</p>
                             </div>
                           </div>
                         </div>
@@ -690,16 +690,16 @@ export default function App() {
                       <Clock className="w-4 h-4" />
                       <span className="text-[10px] font-bold uppercase tracking-widest">Hourly Forecast (Air Temp)</span>
                     </div>
-                    <div className="flex overflow-x-auto pb-2 gap-6 no-scrollbar">
+                    <div className="flex overflow-x-auto pb-2 gap-6">
                       {data?.hourlyForecast && data.hourlyForecast.length > 0 ? (
                         data.hourlyForecast.map((p, i) => {
                           const time = new Date(p.time);
                           const hour = time.getHours();
-                          const displayHour = hour === 0 ? "12 AM" : hour > 12 ? `${hour - 12} PM` : hour === 12 ? "12 PM" : `${hour} AM`;
+                          const displayHour = `${hour.toString().padStart(2, '0')}:00`;
                           const temp = unit === "F" ? p.temp : Math.round((p.temp - 32) * 5/9);
                           return (
                             <div key={i} className="flex flex-col items-center gap-3 min-w-[80px] sm:min-w-[100px]">
-                              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{i === 0 ? "Now" : displayHour.split(' ')[0]}</span>
+                              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{i === 0 ? "Now" : displayHour}</span>
                               <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 relative group/h overflow-hidden shadow-sm">
                                 <img 
                                   src={p.icon} 
@@ -727,12 +727,12 @@ export default function App() {
                           const time = new Date();
                           time.setHours(time.getHours() + i);
                           const hour = time.getHours();
-                          const displayHour = hour === 0 ? "12 AM" : hour > 12 ? `${hour - 12} PM` : hour === 12 ? "12 PM" : `${hour} AM`;
+                          const displayHour = `${hour.toString().padStart(2, '0')}:00`;
                           const baseTemp = (unit === "F" ? data?.tempF : data?.tempC) ?? 0;
                           const temp = Math.round(baseTemp) + (Math.sin(i / 2) * 2);
                           return (
                             <div key={i} className="flex flex-col items-center gap-3 min-w-[40px]">
-                              <span className="text-[10px] font-bold text-on-surface-variant uppercase">{i === 0 ? "Now" : displayHour.split(' ')[0]}</span>
+                              <span className="text-[10px] font-bold text-on-surface-variant uppercase">{i === 0 ? "Now" : displayHour}</span>
                               <Thermometer className="w-4 h-4 text-primary opacity-60" />
                               <span className="text-sm font-bold text-on-surface">{isNaN(temp) ? "--" : Math.round(temp)}°</span>
                             </div>
@@ -752,8 +752,8 @@ export default function App() {
                       <div className="space-y-4">
                         {data.dailyForecast.slice(0, 10).map((day, idx) => (
                           <div key={idx} className="flex items-center gap-4 group/day">
-                            <div className="flex items-center gap-4 w-[140px] sm:w-[170px] shrink-0">
-                              <span className="text-xs font-bold text-on-surface w-24 sm:w-32 shrink-0 inline-block truncate">{day.name}</span>
+                            <div className="flex items-center gap-4 w-[160px] sm:w-[200px] shrink-0">
+                              <span className="text-xs font-bold text-on-surface w-28 sm:w-36 shrink-0 inline-block truncate" title={day.name}>{day.name}</span>
                               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 overflow-hidden shadow-sm relative shrink-0">
                                 <img 
                                   src={day.icon} 
@@ -769,7 +769,7 @@ export default function App() {
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-[10px] sm:text-xs font-medium text-on-surface-variant line-clamp-1 opacity-70 group-hover/day:opacity-100 transition-opacity">{day.shortForecast}</p>
+                              <p className="text-[10px] sm:text-xs font-medium text-on-surface-variant line-clamp-1 opacity-70 group-hover/day:opacity-100 transition-opacity" title={day.shortForecast}>{day.shortForecast}</p>
                             </div>
                             <div className="flex items-center gap-3 w-12 sm:w-16 justify-end shrink-0">
                               <span className="text-sm sm:text-base font-black text-on-surface">{unit === "F" ? day.temp : Math.round((day.temp - 32) * 5/9)}°</span>
@@ -915,7 +915,7 @@ export default function App() {
                             </div>
                             <div className="pl-10 sm:pl-0">
                               <span className="text-sm font-black text-on-surface whitespace-nowrap">
-                                {data.sunrise ? new Date(data.sunrise).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
+                                {data.sunrise ? new Date(data.sunrise).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '--'}
                               </span>
                             </div>
                           </div>
@@ -928,7 +928,7 @@ export default function App() {
                             </div>
                             <div className="pl-10 sm:pl-0">
                               <span className="text-sm font-black text-on-surface whitespace-nowrap">
-                                {data.sunset ? new Date(data.sunset).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
+                                {data.sunset ? new Date(data.sunset).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '--'}
                               </span>
                             </div>
                           </div>
