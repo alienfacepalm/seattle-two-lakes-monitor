@@ -6,7 +6,7 @@
   --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-label: "Space Grotesk", ui-monospace, SFMono-Regular, monospace;
 
-  --color-primary: #007aff;
+  --color-primary: #004a77;
   --color-primary-container: #004a77;
   --color-secondary: #3b6a01;
   --color-tertiary: #311800;
@@ -23,7 +23,7 @@
 
 @layer base {
   :root {
-    --color-primary: #007aff;
+    --color-primary: #004a77;
     --color-surface: #f2f2f7;
     --color-surface-container-low: #ffffff;
     --color-on-surface: #1c1c1e;
@@ -31,7 +31,7 @@
   }
 
   .dark {
-    --color-primary: #0a84ff;
+    --color-primary: #5da8ff;
     --color-surface: #000000;
     --color-surface-container-low: #1c1c1e;
     --color-surface-container-highest: #3a3a3c;

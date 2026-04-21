@@ -525,7 +525,7 @@ export default function App() {
             </div>
           </div>
           <div className="flex flex-col -space-y-0.5 sm:-space-y-1">
-            <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-primary leading-none">Seattle</span>
+            <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-primary/70 leading-none">Seattle</span>
             <h1 className="text-xl sm:text-2xl font-black text-on-surface font-headline tracking-tighter uppercase leading-none">
               2lakes<span className="text-primary">.app</span>
             </h1>
