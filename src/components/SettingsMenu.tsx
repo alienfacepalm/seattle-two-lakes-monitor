@@ -1,6 +1,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Layout, Zap, Moon, Sun, RefreshCw, Radar, FileText, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface SettingsMenuProps {
   isOpen: boolean;
@@ -11,7 +12,6 @@ interface SettingsMenuProps {
   isRefreshing: boolean;
   hasRadar: boolean;
   onShowRadar: () => void;
-  onShowTOS: () => void;
 }
 
 export const SettingsMenu = ({ 
@@ -23,7 +23,6 @@ export const SettingsMenu = ({
   isRefreshing,
   hasRadar,
   onShowRadar,
-  onShowTOS
 }: SettingsMenuProps) => {
   return (
     <AnimatePresence>
@@ -124,8 +123,9 @@ export const SettingsMenu = ({
               {/* Legal Section */}
               <section>
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-4 ml-1">Legal</h3>
-                <button 
-                  onClick={() => { onShowTOS(); onClose(); }}
+                <Link 
+                  to="/tos"
+                  onClick={onClose}
                   className="w-full flex items-center justify-between p-4 rounded-2xl bg-surface-container-low border border-black/5 dark:border-white/10 hover:bg-surface-container transition-all group active:scale-[0.98]"
                 >
                   <div className="flex items-center gap-3">
@@ -138,7 +138,7 @@ export const SettingsMenu = ({
                     </div>
                   </div>
                   <ExternalLink className="w-4 h-4 text-on-surface-variant/40" />
-                </button>
+                </Link>
               </section>
 
               <div className="pt-8 mt-8 border-t border-black/5 dark:border-white/10">

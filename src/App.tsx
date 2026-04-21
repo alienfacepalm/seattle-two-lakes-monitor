@@ -72,7 +72,7 @@ import { HistoryCharts } from "./components/HistoryCharts";
 import { Tooltip } from "./components/Tooltip";
 import { TempLegend } from "./components/TempLegend";
 import { SettingsMenu } from "./components/SettingsMenu";
-import { TOSModal } from "./components/TOSModal";
+import { TOSPage } from "./pages/TOSPage";
 
 enum OperationType {
   CREATE = 'create',
@@ -220,7 +220,6 @@ export default function App() {
   const [isIOS, setIsIOS] = useState(false);
   const [showRadarModal, setShowRadarModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showTOS, setShowTOS] = useState(false);
   const [expandedBuoyId, setExpandedBuoyId] = useState<string | null>(null);
   const [expandedForecastIdx, setExpandedForecastIdx] = useState<number | null>(null);
   const [mapZoom, setMapZoom] = useState<Record<string, number>>({});
@@ -582,9 +581,7 @@ export default function App() {
           isRefreshing={refreshing}
           hasRadar={!!data?.radarStation}
           onShowRadar={() => setShowRadarModal(true)}
-          onShowTOS={() => setShowTOS(true)}
         />
-        <TOSModal isOpen={showTOS} onClose={() => setShowTOS(false)} />
         <AnimatePresence mode="wait">
           <Routes location={location}>
             <Route path="/" element={
@@ -1159,13 +1156,6 @@ export default function App() {
                   <h2 className="text-2xl font-black text-on-surface mb-2 font-headline uppercase tracking-tight px-8">Lake Network</h2>
                   <p className="text-sm text-on-surface-variant opacity-70 mb-6 px-8">Real-time data from all monitored sensors in the Seattle area.</p>
                   
-                  <div className="mx-8 mb-8 bg-surface-container-highest/20 rounded-2xl p-4 border border-black/5 dark:border-white/5">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mb-2 italic">A Note on Map Sources</p>
-                    <p className="text-xs font-semibold leading-relaxed text-on-surface-variant">
-                      The maps used across this site are <span className="text-primary font-black uppercase tracking-wider">FREE geo maps</span>. That's it. It's not a Russian coup—it's just free stuff we couldn't find for free elsewhere.
-                    </p>
-                  </div>
-
                   <div className="flex flex-col divide-y divide-black/5 dark:divide-white/5">
                     {sortedBuoys.map((buoy) => {
                       const isExpanded = expandedBuoyId === buoy.id;
@@ -1280,6 +1270,7 @@ export default function App() {
               </motion.div>
             } />
             <Route path="/icons" element={<IconGallery />} />
+            <Route path="/tos" element={<TOSPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AnimatePresence>
