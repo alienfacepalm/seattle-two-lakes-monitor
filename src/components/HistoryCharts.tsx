@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from "recharts";
 import { Thermometer, Wind, CloudRain, Droplets, CalendarRange } from "lucide-react";
 import { HistoryPoint } from "../types";
+import { Tooltip as UITooltip } from "./Tooltip";
 
 interface HistoryChartsProps {
   history: HistoryPoint[];
@@ -83,17 +84,18 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
           </div>
           <div className="flex p-1 bg-surface-container-highest/50 rounded-xl w-fit flex-wrap">
             {ranges.map((r) => (
-              <button
-                key={r.value}
-                onClick={() => setRange(r.value)}
-                className={`px-3 py-1 rounded-lg text-[10px] font-black transition-all ${
-                  range === r.value 
-                    ? "bg-surface shadow-sm text-primary" 
-                    : "text-on-surface-variant opacity-50 hover:opacity-100"
-                }`}
-              >
-                {r.label}
-              </button>
+              <UITooltip key={r.value} content={`Show last ${r.label}`}>
+                <button
+                  onClick={() => setRange(r.value)}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black transition-all ${
+                    range === r.value 
+                      ? "bg-surface shadow-sm text-primary" 
+                      : "text-on-surface-variant opacity-50 hover:opacity-100"
+                  }`}
+                >
+                  {r.label}
+                </button>
+              </UITooltip>
             ))}
           </div>
         </div>

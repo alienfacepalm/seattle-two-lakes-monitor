@@ -29,13 +29,13 @@ import {
   ChevronDown,
   Check,
   Share,
-  Database
+  Database,
+  Radar
 } from "lucide-react";
 import { 
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  Tooltip, 
   ResponsiveContainer,
   AreaChart,
   Area,
@@ -64,6 +64,7 @@ import { BUOY_CONFIGS } from "./constants";
 import { getConditionIcon, getBuoyBackground } from "./lib/utils";
 import { IconGallery } from "./components/IconGallery";
 import { HistoryCharts } from "./components/HistoryCharts";
+import { Tooltip } from "./components/Tooltip";
 
 enum OperationType {
   CREATE = 'create',
@@ -202,6 +203,7 @@ export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [showRadarModal, setShowRadarModal] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -516,12 +518,33 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setIsDark(!isDark)} className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
-            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
-          <button onClick={fetchData} disabled={refreshing} className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface hover:bg-black/5 dark:hover:bg-white/10 transition-colors disabled:opacity-50">
-            <RefreshCw className={`w-5 h-5 ${refreshing ? "animate-spin" : ""}`} />
-          </button>
+          {data?.radarStation && (
+            <Tooltip content="Live Radar">
+              <button 
+                onClick={() => setShowRadarModal(true)}
+                className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <Radar className="w-5 h-5" />
+              </button>
+            </Tooltip>
+          )}
+          <Tooltip content={isDark ? "Light Mode" : "Dark Mode"}>
+            <button 
+              onClick={() => setIsDark(!isDark)} 
+              className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+          </Tooltip>
+          <Tooltip content="Refresh Data">
+            <button 
+              onClick={fetchData} 
+              disabled={refreshing} 
+              className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface hover:bg-black/5 dark:hover:bg-white/10 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw className={`w-5 h-5 ${refreshing ? "animate-spin" : ""}`} />
+            </button>
+          </Tooltip>
         </div>
       </header>
 
@@ -542,16 +565,18 @@ export default function App() {
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}>
                   {/* Top Buoy Selector Bar */}
                   <div className="mb-6 relative">
-                    <button 
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="w-full bg-surface-container-low border border-black/5 dark:border-white/5 rounded-2xl p-4 flex items-center justify-between group hover:bg-surface-container transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full animate-pulse border border-black/10 dark:border-white/10 ${data?.status === "ACTIVE" ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`} />
-                        <span className="text-sm font-bold text-on-surface">{selectedBuoy.endsWith("Buoy") ? selectedBuoy : `${selectedBuoy} Buoy`}</span>
-                      </div>
-                      <ChevronDown className={`w-5 h-5 text-on-surface-variant transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
+                    <Tooltip content="Select Buoy Location" side="bottom">
+                      <button 
+                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        className="w-full bg-surface-container-low border border-black/5 dark:border-white/5 rounded-2xl p-4 flex items-center justify-between group hover:bg-surface-container transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full animate-pulse border border-black/10 dark:border-white/10 ${data?.status === "ACTIVE" ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`} />
+                          <span className="text-sm font-bold text-on-surface">{selectedBuoy.endsWith("Buoy") ? selectedBuoy : `${selectedBuoy} Buoy`}</span>
+                        </div>
+                        <ChevronDown className={`w-5 h-5 text-on-surface-variant transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                    </Tooltip>
                     
                     <AnimatePresence>
                       {isDropdownOpen && (
@@ -565,7 +590,7 @@ export default function App() {
                             <button 
                               key={buoy.id} 
                               onClick={() => { setSelectedBuoy(buoy.name); setIsDropdownOpen(false); }} 
-                              className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${selectedBuoy === buoy.name ? 'text-primary' : 'text-on-surface'}`}
+                              className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer ${selectedBuoy === buoy.name ? 'text-primary' : 'text-on-surface'}`}
                             >
                               <div className="flex items-center gap-3">
                                 <div className={`w-2 h-2 rounded-full ${buoy.active ? "bg-[#ccff00] shadow-[0_0_5px_#ccff00]" : "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]"}`} />
@@ -618,8 +643,12 @@ export default function App() {
                           </p>
                         </div>
                         <div className="flex gap-1 bg-surface-container-highest/50 backdrop-blur-md p-1 rounded-xl">
-                          <button onClick={() => setUnit("F")} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${unit === "F" ? "bg-surface shadow-sm" : "opacity-50"}`}>°F</button>
-                          <button onClick={() => setUnit("C")} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${unit === "C" ? "bg-surface shadow-sm" : "opacity-50"}`}>°C</button>
+                          <Tooltip content="Show Fahrenheit">
+                            <button onClick={() => setUnit("F")} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${unit === "F" ? "bg-surface shadow-sm" : "opacity-50"}`}>°F</button>
+                          </Tooltip>
+                          <Tooltip content="Show Celsius">
+                            <button onClick={() => setUnit("C")} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${unit === "C" ? "bg-surface shadow-sm" : "opacity-50"}`}>°C</button>
+                          </Tooltip>
                         </div>
                       </div>
                       <div className="mt-8 flex flex-col items-center">
@@ -655,32 +684,31 @@ export default function App() {
                         </div>
                       </div>
                       <div className="mt-8 pt-6 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           <span className={`w-2 h-2 rounded-full animate-pulse border border-black/10 dark:border-white/10 ${data?.status === "ACTIVE" ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`}></span>
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface flex flex-wrap items-center gap-2">
-                            <span>{data?.status === "ACTIVE" ? "Live Buoy" : "Offline Mode"}</span>
+                          <div className="flex flex-col leading-tight">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-on-surface">
+                              {data?.status === "ACTIVE" ? "Live" : "Offline"}
+                            </span>
                             {history.length > 0 && (
-                              <span className="opacity-40 font-medium">· Collecting since {new Date(history[0].time).toLocaleDateString()}</span>
+                              <span className="text-[8px] font-bold uppercase tracking-wider text-on-surface opacity-30">
+                                Since {new Date(history[0].time).toLocaleDateString()}
+                              </span>
                             )}
-                          </span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-4">
-                          {data?.radarStation && (
-                            <a 
-                              href={`https://radar.weather.gov/station/${data.radarStation}/standard`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 rounded-full transition-colors group/radar"
-                            >
-                              <Database className="w-3 h-3 text-primary" />
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Live Radar</span>
-                            </a>
-                          )}
                           <div className="text-right group cursor-default">
-                            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface transition-all duration-300">Updated {new Date(data?.timestamp || "").toLocaleDateString()} at {new Date(data?.timestamp || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</p>
+                            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface transition-all duration-300">
+                              <span className="sm:hidden">UPD:</span>
+                              <span className="hidden sm:inline">Updated</span> {new Date(data?.timestamp || "").toLocaleDateString()} at {new Date(data?.timestamp || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                            </p>
                             <div className="flex items-center justify-end gap-1.5">
                               {isSyncing && <Database className="w-2.5 h-2.5 text-primary animate-pulse" />}
-                              <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface transition-all duration-300">Checked {lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</p>
+                              <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface transition-all duration-300">
+                                <span className="sm:hidden">CHK:</span>
+                                <span className="hidden sm:inline">Checked</span> {lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -757,7 +785,9 @@ export default function App() {
                         {data.dailyForecast.slice(0, 10).map((day, idx) => (
                           <div key={idx} className="flex items-center gap-4 group/day">
                             <div className="flex items-center gap-4 w-[160px] sm:w-[200px] shrink-0">
-                              <span className="text-xs font-bold text-on-surface w-28 sm:w-36 shrink-0 inline-block truncate" title={day.name}>{day.name}</span>
+                              <Tooltip content={day.name} align="start">
+                                <span className="text-xs font-bold text-on-surface w-28 sm:w-36 shrink-0 inline-block truncate cursor-pointer">{day.name}</span>
+                              </Tooltip>
                               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 overflow-hidden shadow-sm relative shrink-0">
                                 <img 
                                   src={day.icon} 
@@ -773,7 +803,9 @@ export default function App() {
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-[10px] sm:text-xs font-medium text-on-surface-variant line-clamp-1 opacity-70 group-hover/day:opacity-100 transition-opacity" title={day.shortForecast}>{day.shortForecast}</p>
+                              <Tooltip content={day.shortForecast} align="start">
+                                <p className="text-[10px] sm:text-xs font-medium text-on-surface-variant line-clamp-1 opacity-70 group-hover/day:opacity-100 transition-opacity cursor-pointer">{day.shortForecast}</p>
+                              </Tooltip>
                             </div>
                             <div className="flex items-center gap-3 w-12 sm:w-16 justify-end shrink-0">
                               <span className="text-sm sm:text-base font-black text-on-surface">{unit === "F" ? day.temp : Math.round((day.temp - 32) * 5/9)}°</span>
@@ -1087,9 +1119,15 @@ export default function App() {
 
       <nav className="shrink-0 z-50 bg-surface/80 backdrop-blur-xl border-t border-black/5 dark:border-white/5 pb-safe">
         <div className="flex justify-around items-center px-4 pt-4 pb-6">
-          <Link to="/" className={`flex flex-col items-center justify-center transition-all ${activeTab === "current" ? "text-primary" : "text-on-surface/40"}`}><LayoutDashboard className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">Dashboard</span></Link>
-          <Link to="/history" className={`flex flex-col items-center justify-center transition-all ${activeTab === "history" ? "text-primary" : "text-on-surface/40"}`}><HistoryIcon className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">History</span></Link>
-          <Link to="/network" className={`flex flex-col items-center justify-center transition-all ${activeTab === "map" ? "text-primary" : "text-on-surface/40"}`}><MapPin className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">Network</span></Link>
+          <Tooltip content="Home Dashboard">
+            <Link to="/" className={`flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === "current" ? "text-primary" : "text-on-surface/40"}`}><LayoutDashboard className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">Dashboard</span></Link>
+          </Tooltip>
+          <Tooltip content="History Trends">
+            <Link to="/history" className={`flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === "history" ? "text-primary" : "text-on-surface/40"}`}><HistoryIcon className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">History</span></Link>
+          </Tooltip>
+          <Tooltip content="Lake Network">
+            <Link to="/network" className={`flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === "map" ? "text-primary" : "text-on-surface/40"}`}><MapPin className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">Network</span></Link>
+          </Tooltip>
         </div>
       </nav>
 
@@ -1116,6 +1154,69 @@ export default function App() {
               <h2 className="text-xl font-bold text-on-surface mb-3 font-headline">Connection Lost</h2>
               <p className="text-sm text-on-surface-variant opacity-70 mb-8 leading-relaxed">It looks like you're offline. Please find a stable internet connection to refresh the buoy data.</p>
               <button onClick={() => setShowOfflineAlert(false)} className="w-full bg-on-surface text-surface font-bold py-4 rounded-2xl shadow-lg active:scale-[0.98] transition-all">OK</button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showRadarModal && data?.radarStation && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-8 bg-black/60 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.95, y: 20 }} 
+              className="w-full max-w-5xl h-full max-h-[85vh] bg-surface-container-low border border-black/10 dark:border-white/10 rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/5 bg-surface/50 backdrop-blur-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Radar className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-on-surface uppercase tracking-tight leading-none italic">
+                      National Weather Service <span className="text-primary not-italic">Radar</span>
+                    </h3>
+                    <p className="text-[10px] text-on-surface-variant opacity-60 font-bold uppercase tracking-widest mt-1">
+                      Station: {data.radarStation}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Tooltip content="Open in new tab">
+                    <a 
+                       href={`https://radar.weather.gov/station/${data.radarStation}/standard`}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors text-on-surface-variant cursor-pointer"
+                     >
+                       <Share className="w-4 h-4" />
+                     </a>
+                  </Tooltip>
+                   <button 
+                     onClick={() => setShowRadarModal(false)}
+                     className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors group cursor-pointer"
+                   >
+                     <X className="w-6 h-6 text-on-surface-variant group-hover:text-on-surface transition-colors" />
+                   </button>
+                </div>
+              </div>
+              <div className="flex-1 bg-black/5 relative min-h-0">
+                <iframe 
+                  src={`https://radar.weather.gov/station/${data.radarStation}/standard`}
+                  className="w-full h-full border-none"
+                  title="NWS Live Radar"
+                  allow="geolocation"
+                />
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-0 animate-pulse bg-surface/5">
+                   <Radar className="w-12 h-12 text-primary opacity-20" />
+                </div>
+              </div>
+              <div className="px-6 py-3 bg-surface/30 backdrop-blur-sm border-t border-black/5 dark:border-white/5 text-center">
+                 <p className="text-[9px] text-on-surface-variant opacity-40 uppercase font-bold tracking-[0.2em]">
+                   Data provided by NOAA / National Weather Service
+                 </p>
+              </div>
             </motion.div>
           </div>
         )}
