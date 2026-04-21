@@ -41,6 +41,7 @@ async function performBackgroundSync() {
   
   try {
     const response = await fetch("https://green2.kingcounty.gov/lake-buoy/GenerateMapData.aspx", {
+      signal: AbortSignal.timeout(NWS_TIMEOUT),
       headers: { "Cache-Control": "no-cache" }
     });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -207,7 +208,7 @@ async function startServer() {
       };
       
       const response = await fetch("https://green2.kingcounty.gov/lake-buoy/GenerateMapData.aspx", {
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(NWS_TIMEOUT),
         headers: { "Cache-Control": "no-cache" }
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -421,8 +422,12 @@ async function startServer() {
                 expires: Date.now() + CACHE_TTL
               };
             }
-          } catch (nwsErr) {
-            console.warn("[NWS] Failed to fetch augmented data:", nwsErr);
+          } catch (nwsErr: any) {
+            if (nwsErr.name === 'AbortError') {
+              console.warn(`[NWS] Timeout fetching augmented data for ${locationName} (${NWS_TIMEOUT}ms exceeded)`);
+            } else {
+              console.warn(`[NWS] Failed to fetch augmented data for ${locationName}:`, nwsErr.message || nwsErr);
+            }
           }
         }
       }
@@ -608,7 +613,7 @@ async function startServer() {
       const searchName = config.searchName.toLowerCase();
 
       const response = await fetch("https://green2.kingcounty.gov/lake-buoy/GenerateMapData.aspx", {
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(NWS_TIMEOUT),
         headers: { "Cache-Control": "no-cache" }
       });
       const text = await response.text();

@@ -39,4 +39,4 @@ export const BUOY_CONFIGS = {
 
 export const NWS_USER_AGENT = "LakeBuoyApp/1.0 (brandons.pliska@gmail.com)";
 export const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
-export const NWS_TIMEOUT = 10000; // 10 seconds
+export const NWS_TIMEOUT = 30000; // 30 seconds

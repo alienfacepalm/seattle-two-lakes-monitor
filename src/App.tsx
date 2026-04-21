@@ -27,10 +27,13 @@ import {
   CloudDrizzle,
   Cloudy as CloudyIcon,
   ChevronDown,
+  ChevronRight,
   Check,
   Share,
   Database,
-  Radar
+  Radar,
+  Plus,
+  Minus
 } from "lucide-react";
 import { 
   XAxis, 
@@ -61,10 +64,11 @@ import { signInAnonymously, onAuthStateChanged, User } from "firebase/auth";
 
 import { BuoyData, MapBuoy, HistoryPoint } from "./types";
 import { BUOY_CONFIGS } from "./constants";
-import { getConditionIcon, getBuoyBackground } from "./lib/utils";
+import { getConditionIcon, getBuoyBackground, getTemperatureColor } from "./lib/utils";
 import { IconGallery } from "./components/IconGallery";
 import { HistoryCharts } from "./components/HistoryCharts";
 import { Tooltip } from "./components/Tooltip";
+import { TempLegend } from "./components/TempLegend";
 
 enum OperationType {
   CREATE = 'create',
@@ -204,6 +208,9 @@ export default function App() {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [showRadarModal, setShowRadarModal] = useState(false);
+  const [expandedBuoyId, setExpandedBuoyId] = useState<string | null>(null);
+  const [expandedForecastIdx, setExpandedForecastIdx] = useState<number | null>(null);
+  const [mapZoom, setMapZoom] = useState<Record<string, number>>({});
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -518,8 +525,8 @@ export default function App() {
             </div>
           </div>
           <div className="flex flex-col -space-y-0.5 sm:-space-y-1">
-            <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-primary/70 leading-none">Seattle</span>
-            <h1 className="text-sm sm:text-lg font-black text-on-surface font-headline tracking-tighter uppercase leading-none">
+            <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-primary leading-none">Seattle</span>
+            <h1 className="text-xl sm:text-2xl font-black text-on-surface font-headline tracking-tighter uppercase leading-none">
               2lakes<span className="text-primary">.app</span>
             </h1>
           </div>
@@ -527,30 +534,36 @@ export default function App() {
         <div className="flex items-center gap-2">
           {data?.radarStation && (
             <Tooltip content="Live Radar">
-              <button 
+              <motion.button 
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => setShowRadarModal(true)}
-                className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface lg:hover:bg-black/5 lg:dark:hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <Radar className="w-5 h-5" />
-              </button>
+              </motion.button>
             </Tooltip>
           )}
           <Tooltip content={isDark ? "Light Mode" : "Dark Mode"}>
-            <button 
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               onClick={() => setIsDark(!isDark)} 
-              className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface lg:hover:bg-black/5 lg:dark:hover:bg-white/10 transition-colors cursor-pointer"
             >
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
+            </motion.button>
           </Tooltip>
           <Tooltip content="Refresh Data">
-            <button 
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               onClick={fetchData} 
               disabled={refreshing} 
-              className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface hover:bg-black/5 dark:hover:bg-white/10 transition-colors disabled:opacity-50 cursor-pointer"
+              className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface lg:hover:bg-black/5 lg:dark:hover:bg-white/10 transition-colors disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-5 h-5 ${refreshing ? "animate-spin" : ""}`} />
-            </button>
+            </motion.button>
           </Tooltip>
         </div>
       </header>
@@ -573,16 +586,17 @@ export default function App() {
                   {/* Top Buoy Selector Bar */}
                   <div className="mb-6 relative">
                     <Tooltip content="Select Buoy Location" side="bottom">
-                      <button 
+                      <motion.button 
+                        whileTap={{ scale: 0.98 }}
                         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className="w-full bg-surface-container-low border border-black/5 dark:border-white/5 rounded-2xl p-4 flex items-center justify-between group hover:bg-surface-container transition-colors cursor-pointer"
+                        className="w-full bg-surface-container-low border border-black/5 dark:border-white/5 rounded-2xl p-4 flex items-center justify-between group lg:hover:bg-surface-container transition-colors cursor-pointer"
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-2 h-2 rounded-full animate-pulse border border-black/10 dark:border-white/10 ${data?.status === "ACTIVE" ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`} />
                           <span className="text-sm font-bold text-on-surface">{selectedBuoy.endsWith("Buoy") ? selectedBuoy : `${selectedBuoy} Buoy`}</span>
                         </div>
                         <ChevronDown className={`w-5 h-5 text-on-surface-variant transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                      </button>
+                      </motion.button>
                     </Tooltip>
                     
                     <AnimatePresence>
@@ -668,37 +682,40 @@ export default function App() {
                             )}
                           </div>
                           <div className="flex flex-col items-center">
-                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface">Water Temperature</span>
-                            <span className="text-7xl font-light tracking-tighter text-on-surface">
+                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant mb-1">Water Temperature</span>
+                            <span className={`text-8xl font-black tracking-tighter drop-shadow-sm ${getTemperatureColor(data?.tempF ?? lastWaterTempPoint?.tempF ?? 0)}`}>
                               {data?.tempC !== null && data?.tempC !== undefined
                                 ? `${Math.round(unit === "F" ? (data.tempF ?? 0) : (data.tempC ?? 0))}°`
                                 : (data?.status === "ACTIVE" ? "--" : (lastWaterTempPoint ? `${Math.round(unit === "F" ? (lastWaterTempPoint.tempF ?? 0) : (lastWaterTempPoint.tempC ?? 0))}°` : "--"))}
                             </span>
                           </div>
                         </div>
-                        <p className="text-xl font-medium text-on-surface mt-2 text-center">
+                        <p className="text-2xl font-black text-on-surface mt-2 text-center drop-shadow-sm">
                           {data?.status === "ACTIVE" 
                             ? (data?.tempC === null || data?.tempC === undefined ? "Water Temp Unavailable" : `${data?.condition} Conditions`) 
                             : (lastWaterTempPoint ? "Last Recorded" : "Sensor Offline")}
                         </p>
-                        <div className="flex gap-3 mt-1 text-on-surface font-semibold">
+                        <div className="flex gap-4 mt-2 text-on-surface-variant font-black text-base drop-shadow-sm">
                           {(data?.tempC !== null || lastWaterTempPoint) && (
                             <>
-                              <span>H:{Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) + 2)}°</span>
-                              <span>L:{Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) - 3)}°</span>
+                              <span>H: <span className={getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) + 2)}>{Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) + 2)}°</span></span>
+                              <span>L: <span className={getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) - 3)}>{Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) - 3)}°</span></span>
                             </>
                           )}
+                        </div>
+                        <div className="mt-6">
+                          <TempLegend />
                         </div>
                       </div>
                       <div className="mt-8 pt-6 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <span className={`w-2 h-2 rounded-full animate-pulse border border-black/10 dark:border-white/10 ${data?.status === "ACTIVE" ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`}></span>
                           <div className="flex flex-col leading-tight">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-on-surface">
-                              {data?.status === "ACTIVE" ? "Live" : "Offline"}
+                            <span className="text-[11px] font-black uppercase tracking-widest text-on-surface">
+                              {data?.status === "ACTIVE" ? "Live Sensor" : "Offline"}
                             </span>
                             {history.length > 0 && (
-                              <span className="text-[8px] font-bold uppercase tracking-wider text-on-surface opacity-30">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
                                 Since {new Date(history[0].time).toLocaleDateString()}
                               </span>
                             )}
@@ -706,15 +723,15 @@ export default function App() {
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="text-right group cursor-default">
-                            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface transition-all duration-300">
-                              <span className="sm:hidden">UPD:</span>
-                              <span className="hidden sm:inline">Updated</span> {new Date(data?.timestamp || "").toLocaleDateString()} at {new Date(data?.timestamp || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                            <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-on-surface-variant">
+                              <span className="sm:hidden text-primary font-black">UPD:</span>
+                              <span className="hidden sm:inline text-primary font-black">Updated</span> <span className="text-on-surface">{new Date(data?.timestamp || "").toLocaleDateString()}</span> at <span className="text-on-surface">{new Date(data?.timestamp || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
                             </p>
-                            <div className="flex items-center justify-end gap-1.5">
-                              {isSyncing && <Database className="w-2.5 h-2.5 text-primary animate-pulse" />}
-                              <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface transition-all duration-300">
-                                <span className="sm:hidden">CHK:</span>
-                                <span className="hidden sm:inline">Checked</span> {lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                            <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                              {isSyncing && <Database className="w-4 h-4 text-primary animate-pulse" />}
+                              <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-on-surface-variant">
+                                <span className="sm:hidden text-primary font-black">CHK:</span>
+                                <span className="hidden sm:inline text-primary font-black">Checked</span> <span className="text-on-surface">{lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span>
                               </p>
                             </div>
                           </div>
@@ -725,9 +742,9 @@ export default function App() {
 
                   {/* Hourly Forecast */}
                   <section className="bg-surface-container-low rounded-[2rem] p-6 mt-6 shadow-sm border border-black/5 dark:border-white/5">
-                    <div className="flex items-center gap-2 text-on-surface-variant mb-6">
+                    <div className="flex items-center gap-2 text-on-surface-variant mb-6 px-1">
                       <Clock className="w-4 h-4" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Hourly Forecast (Air Temp)</span>
+                      <span className="text-xs font-black uppercase tracking-widest text-primary leading-none">Hourly Forecast</span>
                     </div>
                     <div className="flex overflow-x-auto pb-2 gap-6">
                       {data?.hourlyForecast && data.hourlyForecast.length > 0 ? (
@@ -738,7 +755,7 @@ export default function App() {
                           const temp = unit === "F" ? p.temp : Math.round((p.temp - 32) * 5/9);
                           return (
                             <div key={i} className="flex flex-col items-center gap-3 min-w-[80px] sm:min-w-[100px]">
-                              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{i === 0 ? "Now" : displayHour}</span>
+                              <span className="text-xs font-black text-on-surface-variant uppercase tracking-wider">{i === 0 ? "Now" : displayHour}</span>
                               <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 relative group/h overflow-hidden shadow-sm">
                                 <img 
                                   src={p.icon} 
@@ -753,9 +770,9 @@ export default function App() {
                                 )}
                               </div>
                               <div className="flex flex-col items-center">
-                                <span className="text-base font-black text-on-surface">{isNaN(temp) ? "--" : Math.round(temp)}°</span>
+                                <span className={`text-lg font-black ${getTemperatureColor(p.temp)}`}>{isNaN(temp) ? "--" : Math.round(temp)}°</span>
                                 {p.windDirection && (
-                                  <span className="text-[9px] font-bold text-on-surface-variant opacity-60 uppercase mt-0.5 tracking-tight">{p.windDirection} {p.windSpeed.split(' ')[0]}</span>
+                                  <span className="text-[11px] font-black text-on-surface-variant uppercase mt-0.5 tracking-tight">{p.windDirection} {p.windSpeed.split(' ')[0]}</span>
                                 )}
                               </div>
                             </div>
@@ -783,47 +800,65 @@ export default function App() {
 
                   {/* 7-Day Forecast */}
                   {data?.dailyForecast && data.dailyForecast.length > 0 && (
-                    <section className="bg-surface-container-low rounded-[2rem] p-6 mt-6 shadow-sm border border-black/5 dark:border-white/5">
-                      <div className="flex items-center gap-2 text-on-surface-variant mb-6">
+                    <section className="bg-surface-container-low rounded-[2rem] pt-6 pb-2 mt-6 shadow-sm border border-black/5 dark:border-white/5 overflow-hidden">
+                      <div className="flex items-center gap-2 text-on-surface-variant mb-4 px-6">
                         <HistoryIcon className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">7-Day Outlook (Air Temp)</span>
+                        <span className="text-xs font-black uppercase tracking-widest text-primary leading-none">7-Day Outlook</span>
                       </div>
-                      <div className="space-y-4">
-                        {data.dailyForecast.slice(0, 10).map((day, idx) => (
-                          <Tooltip key={idx} content={
-                            <div className="space-y-1">
-                              <p className="font-black uppercase tracking-tighter text-primary leading-tight">{day.name}</p>
-                              <p className="text-[11px] leading-snug opacity-90">{day.detailedForecast || day.shortForecast}</p>
-                            </div>
-                          }>
-                            <div className="flex items-center gap-4 group/day p-2 -mx-2 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer">
-                              <div className="flex items-center gap-4 w-[160px] sm:w-[200px] shrink-0">
-                                <span className="text-xs font-bold text-on-surface w-28 sm:w-36 shrink-0 inline-block truncate">{day.name}</span>
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 overflow-hidden shadow-sm relative shrink-0 transition-transform group-hover/day:scale-110">
-                                  <img 
-                                    src={day.icon} 
-                                    alt={day.shortForecast} 
-                                    className="w-full h-[220%] object-cover object-top" 
-                                    referrerPolicy="no-referrer" 
-                                  />
-                                  {day.precipitationProbability > 0 && (
-                                    <div className="absolute bottom-0.5 right-0.5 bg-primary/90 backdrop-blur-sm text-white text-[7px] font-black px-1 py-0.5 rounded-sm shadow-sm border border-white/10">
-                                      {day.precipitationProbability}%
-                                    </div>
-                                  )}
+                      <div className="flex flex-col divide-y divide-black/5 dark:divide-white/5">
+                        {data.dailyForecast.slice(0, 10).map((day, idx) => {
+                          const isExpanded = expandedForecastIdx === idx;
+                          return (
+                            <div key={idx} className="flex flex-col relative transition-all group/day">
+                              <motion.div 
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => setExpandedForecastIdx(isExpanded ? null : idx)}
+                                className={`flex items-center gap-4 py-4 px-6 lg:hover:bg-black/5 lg:dark:hover:bg-white/5 transition-all cursor-pointer relative lg:hover:z-10 lg:hover:border-t-transparent lg:hover:[&+*]:border-t-transparent ${isExpanded ? "bg-primary/5 border-t-transparent" : ""}`}
+                              >
+                                <div className="flex items-center gap-4 w-[160px] sm:w-[200px] shrink-0">
+                                  <span className="text-base font-black text-on-surface w-28 sm:w-36 shrink-0 inline-block truncate">{day.name}</span>
+                                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 overflow-hidden shadow-sm relative shrink-0 transition-transform group-hover/day:scale-110">
+                                    <img 
+                                      src={day.icon} 
+                                      alt={day.shortForecast} 
+                                      className="w-full h-[220%] object-cover object-top" 
+                                      referrerPolicy="no-referrer" 
+                                    />
+                                    {day.precipitationProbability > 0 && (
+                                      <div className="absolute bottom-0.5 right-0.5 bg-primary/90 backdrop-blur-sm text-white text-[7px] font-black px-1 py-0.5 rounded-sm shadow-sm border border-white/10">
+                                        {day.precipitationProbability}%
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[10px] sm:text-xs font-medium text-on-surface-variant line-clamp-1 opacity-70 group-hover/day:opacity-100 transition-opacity">
-                                  {day.shortForecast}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-3 w-12 sm:w-16 justify-end shrink-0">
-                                <span className="text-sm sm:text-base font-black text-on-surface">{unit === "F" ? day.temp : Math.round((day.temp - 32) * 5/9)}°</span>
-                              </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold text-on-surface-variant line-clamp-1 group-hover/day:text-on-surface transition-colors">
+                                    {day.shortForecast}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-3 w-12 sm:w-16 justify-end shrink-0">
+                                  <span className={`text-lg sm:text-xl font-black ${getTemperatureColor(day.temp)}`}>{unit === "F" ? day.temp : Math.round((day.temp - 32) * 5/9)}°</span>
+                                  <ChevronRight className={`w-5 h-5 text-primary/60 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                </div>
+                              </motion.div>
+                              
+                              <AnimatePresence>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden bg-primary/5 px-6 pb-6"
+                                  >
+                                    <div className="pt-2 text-sm leading-relaxed text-on-surface font-semibold border-t border-primary/20">
+                                      {day.detailedForecast || day.shortForecast}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                             </div>
-                          </Tooltip>
-                        ))}
+                          );
+                        })}
                       </div>
                     </section>
                   )}
@@ -832,12 +867,12 @@ export default function App() {
                   <div className="grid grid-cols-2 gap-4 mt-6">
                     {/* Swim Suitability */}
                     <div className="col-span-2 sm:col-span-1 bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                      <div className="flex items-center gap-2 text-on-surface-variant mb-4">
+                      <div className="flex items-center gap-2 text-on-surface-variant mb-4 px-1">
                         <Waves className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Swim Suitability</span>
+                        <span className="text-xs font-black uppercase tracking-widest text-primary leading-none">Swim Suitability</span>
                       </div>
-                      <div className="space-y-2">
-                        <div className={`flex items-center gap-2 text-2xl font-semibold tracking-tight ${data?.tempF === null && data?.status === "ACTIVE" ? "text-on-surface-variant opacity-50" : (Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 60 ? "text-red-500" : Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 70 ? "text-orange-500" : "text-green-500")}`}>
+                      <div className="space-y-4">
+                        <div className={`flex items-center gap-3 text-3xl font-black tracking-tight ${data?.tempF === null && data?.status === "ACTIVE" ? "text-on-surface-variant opacity-50" : (Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 60 ? "text-red-500" : Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 70 ? "text-orange-500" : "text-green-500")}`}>
                           {data?.tempF === null && data?.status === "ACTIVE" ? (
                             <>
                               <WifiOff className="w-6 h-6" />
@@ -874,17 +909,17 @@ export default function App() {
 
                     {/* Wind */}
                     <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                      <div className="flex items-center gap-2 text-on-surface-variant mb-6">
+                      <div className="flex items-center gap-2 text-on-surface-variant mb-6 px-1">
                         <Wind className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Wind</span>
+                        <span className="text-xs font-black uppercase tracking-widest text-primary leading-none">Wind Speed</span>
                       </div>
                       <div className="flex flex-col items-center">
-                        <p className="text-4xl font-black text-on-surface">
+                        <p className="text-5xl font-black text-on-surface drop-shadow-sm">
                           {data?.windSpeed !== null && data?.windSpeed !== undefined && !isNaN(Number(data.windSpeed))
                             ? data.windSpeed
                             : (lastWindPoint ? lastWindPoint.windSpeed : "0")}
                         </p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">
+                        <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant mt-2">
                           {data?.windSpeed !== null && data?.windSpeed !== undefined ? "MPH" : "Last Hour"}
                         </p>
                       </div>
@@ -892,17 +927,17 @@ export default function App() {
 
                     {/* Air Temp */}
                     <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                      <div className="flex items-center gap-2 text-on-surface-variant mb-6">
+                      <div className="flex items-center gap-2 text-on-surface-variant mb-6 px-1">
                         <ThermometerSun className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Air Temp</span>
+                        <span className="text-xs font-black uppercase tracking-widest text-primary leading-none">Air Temp</span>
                       </div>
                       <div className="flex flex-col items-center">
-                        <p className="text-4xl font-black text-on-surface">
+                        <p className={`text-5xl font-black drop-shadow-sm ${getTemperatureColor(data?.airTempF ?? lastAirTempPoint?.airTempF ?? 0)}`}>
                           {data?.airTempC !== null && data?.airTempC !== undefined
                             ? Math.round(unit === "F" ? (data.airTempF ?? 0) : (data.airTempC ?? 0))
                             : (lastAirTempPoint ? Math.round(unit === "F" ? (lastAirTempPoint.airTempF ?? 0) : (lastAirTempPoint.airTempC ?? 0)) : "--")}°
                         </p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">
+                        <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant mt-2">
                           {data?.airTempC !== null && data?.airTempC !== undefined ? "Surface Level" : "Last Hour"}
                         </p>
                       </div>
@@ -910,17 +945,17 @@ export default function App() {
 
                     {/* Dew Point */}
                     <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                      <div className="flex items-center gap-2 text-on-surface-variant mb-6">
+                      <div className="flex items-center gap-2 text-on-surface-variant mb-6 px-1">
                         <ThermometerSnowflake className="w-4 h-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Dew Point</span>
+                        <span className="text-xs font-black uppercase tracking-widest text-primary leading-none">Dew Point</span>
                       </div>
                       <div className="flex flex-col items-center">
-                        <p className="text-4xl font-black text-on-surface">
+                        <p className={`text-5xl font-black drop-shadow-sm ${getTemperatureColor((data?.dewpoint !== null && data?.dewpoint !== undefined ? data.dewpoint : (avgDewpoint ?? 0)) * 9/5 + 32)}`}>
                           {data?.dewpoint !== null && data?.dewpoint !== undefined
                             ? Math.round(unit === "F" ? (data.dewpoint * 9/5 + 32) : data.dewpoint)
                             : (avgDewpoint !== null ? Math.round(unit === "F" ? (avgDewpoint * 9/5 + 32) : avgDewpoint) : "--")}°
                         </p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">
+                        <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant mt-2">
                           {data?.dewpoint !== null ? "Atmospheric" : "24h Average"}
                         </p>
                       </div>
@@ -949,36 +984,32 @@ export default function App() {
                     {/* Sunrise & Sunset */}
                     {(data?.sunrise || data?.sunset) && (
                       <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                        <div className="flex items-center gap-2 text-on-surface-variant mb-6">
+                        <div className="flex items-center gap-2 text-on-surface-variant mb-6 px-1">
                           <Sun className="w-4 h-4" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest">Sun Cycle</span>
+                          <span className="text-xs font-black uppercase tracking-widest text-primary leading-none">Sun Cycle</span>
                         </div>
-                        <div className="flex flex-col gap-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center shrink-0">
-                                <Sun className="w-4 h-4 text-orange-500" />
+                        <div className="flex flex-col gap-5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-2xl bg-orange-500/10 flex items-center justify-center shrink-0 border border-orange-500/20">
+                                <Sun className="w-5 h-5 text-orange-500" />
                               </div>
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant opacity-60">Sunrise</span>
+                              <span className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Sunrise</span>
                             </div>
-                            <div className="pl-10 sm:pl-0">
-                              <span className="text-sm font-black text-on-surface whitespace-nowrap">
-                                {data.sunrise ? new Date(data.sunrise).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '--'}
-                              </span>
-                            </div>
+                            <span className="text-lg font-black text-on-surface whitespace-nowrap bg-surface-container px-3 py-1 rounded-lg border border-black/5 dark:border-white/5">
+                              {data.sunrise ? new Date(data.sunrise).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '--'}
+                            </span>
                           </div>
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
-                                <Moon className="w-4 h-4 text-indigo-500" />
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 flex items-center justify-center shrink-0 border border-indigo-500/20">
+                                <Moon className="w-5 h-5 text-indigo-500" />
                               </div>
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant opacity-60">Sunset</span>
+                              <span className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Sunset</span>
                             </div>
-                            <div className="pl-10 sm:pl-0">
-                              <span className="text-sm font-black text-on-surface whitespace-nowrap">
-                                {data.sunset ? new Date(data.sunset).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '--'}
-                              </span>
-                            </div>
+                            <span className="text-lg font-black text-on-surface whitespace-nowrap bg-surface-container px-3 py-1 rounded-lg border border-black/5 dark:border-white/5">
+                              {data.sunset ? new Date(data.sunset).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '--'}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -987,17 +1018,17 @@ export default function App() {
                     {/* Humidity */}
                     {currentHumidityAvailable && (
                       <div className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
-                        <div className="flex items-center gap-2 text-on-surface-variant mb-6">
+                        <div className="flex items-center gap-2 text-on-surface-variant mb-6 px-1">
                           <Droplets className="w-4 h-4" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest">Humidity</span>
+                          <span className="text-xs font-black uppercase tracking-widest text-primary leading-none">Humidity</span>
                         </div>
                         <div className="flex flex-col items-center">
-                          <p className="text-2xl font-black text-on-surface">
+                          <p className="text-5xl font-black text-on-surface drop-shadow-sm">
                             {data?.humidity !== null && data?.humidity !== undefined
                               ? `${Math.round(data.humidity)}%` 
                               : (avgHumidity !== null ? `${Math.round(avgHumidity)}%` : "--")}
                           </p>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mt-1">
+                          <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant mt-2">
                             {data?.humidity !== null && data?.humidity !== undefined ? "Relative Humidity" : "24h Average"}
                           </p>
                         </div>
@@ -1049,15 +1080,15 @@ export default function App() {
                 </div>
 
                 <div className="bg-surface-container-low rounded-[2rem] p-8 shadow-sm border border-black/5 dark:border-white/5">
-                  <h2 className="text-2xl font-black text-on-surface mb-2 font-headline uppercase tracking-tight">24h History</h2>
+                  <h2 className="text-3xl font-black text-on-surface mb-2 font-headline uppercase tracking-tight drop-shadow-sm">24h History</h2>
                   <div className="space-y-4 mb-8">
-                    <p className="text-sm text-on-surface-variant opacity-70">
-                      Detailed trends and historical data for the {selectedBuoy} buoy.
+                    <p className="text-base font-bold text-on-surface-variant">
+                      Detailed trends and historical data for the <span className="text-primary">{selectedBuoy}</span>.
                     </p>
-                    <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 flex items-start gap-3">
-                      <div className="mt-0.5"><Database className="w-4 h-4 text-primary" /></div>
-                      <p className="text-[11px] leading-relaxed text-on-surface-variant font-medium">
-                        <span className="text-primary font-bold">Real-Time Collection:</span> This history is built dynamically. Our server monitors the buoy 24/7, capturing snapshots every hour to create a continuous record of lake conditions.
+                    <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 flex items-start gap-4">
+                      <div className="mt-0.5"><Database className="w-5 h-5 text-primary" /></div>
+                      <p className="text-xs leading-relaxed text-on-surface font-semibold">
+                        <span className="text-primary font-black uppercase tracking-wider block mb-1">Real-Time Data Collection</span> This history is built dynamically. Our server monitors the buoy 24/7, capturing snapshots every hour to create a continuous record of lake conditions.
                       </p>
                     </div>
                   </div>
@@ -1106,40 +1137,118 @@ export default function App() {
             } />
             <Route path="/network" element={
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="space-y-6">
-                <div className="bg-surface-container-low rounded-[2rem] p-8 shadow-sm border border-black/5 dark:border-white/5">
-                  <h2 className="text-2xl font-black text-on-surface mb-2 font-headline uppercase tracking-tight">Lake Network</h2>
-                  <p className="text-sm text-on-surface-variant opacity-70 mb-8">Real-time data from all monitored sensors in the Seattle area.</p>
-                  <div className="space-y-3">
-                    {sortedBuoys.map((buoy) => (
-                      <Tooltip 
-                        key={buoy.id}
-                        side="right"
-                        content={
-                          <div className="space-y-2 p-0.5">
-                            <div className="flex items-center justify-between gap-4">
-                              <h4 className="text-[10px] font-black uppercase tracking-tight text-primary leading-none italic">Buoy <span className="text-on-surface not-italic">Location</span></h4>
-                              <span className="text-[8px] font-bold opacity-50 font-mono">{buoy.lat?.toFixed(4)}, {buoy.lon?.toFixed(4)}</span>
-                            </div>
-                            <div className="w-[180px] h-[100px] rounded-lg overflow-hidden border border-black/10 dark:border-white/10 shadow-inner bg-black/20">
-                              <img
-                                src={`https://static-maps.yandex.ru/1.x/?ll=${buoy.lon},${buoy.lat}&z=11&l=map&size=180,100&pt=${buoy.lon},${buoy.lat},pm2rdm&lang=en_US`}
-                                alt={`Map showing ${buoy.name}`}
-                                className="w-full h-full object-cover opacity-80"
-                                referrerPolicy="no-referrer"
-                              />
-                            </div>
-                          </div>
-                        }
-                      >
-                        <motion.div whileTap={{ scale: 0.98 }} onClick={() => { setSelectedBuoy(buoy.name); navigate("/"); }} className={`relative rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-all overflow-hidden ${selectedBuoy === buoy.name ? "bg-primary/10 ring-1 ring-primary/20" : "bg-surface-container-highest hover:bg-black/10 dark:hover:bg-white/10"}`}>
-                          <div className="relative z-10 flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors ${buoy.active ? "bg-[#ccff00]/10 text-[#718800] dark:text-[#ccff00] border-[#718800]/30 dark:border-[#ccff00]/20" : "bg-on-surface-variant/10 text-on-surface-variant border-transparent"}`}><MapPin className="w-4 h-4" /></div>
-                            <div><h3 className="text-sm font-bold text-on-surface">{buoy.name}</h3><p className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">{buoy.lat?.toFixed(3) || "0.000"}, {buoy.lon?.toFixed(3) || "0.000"}</p></div>
-                          </div>
-                          <div className="text-right"><p className="text-lg font-bold text-on-surface">{buoy.tempC ? (unit === "F" ? buoy.tempF : buoy.tempC) : "--"}°</p><span className={`text-[8px] font-black uppercase tracking-widest ${buoy.active ? "text-[#718800] dark:text-[#ccff00]" : "text-on-surface-variant"}`}>{buoy.active ? "Active" : "Offline"}</span></div>
-                        </motion.div>
-                      </Tooltip>
-                    ))}
+                <div className="bg-surface-container-low rounded-[2rem] pt-8 pb-4 shadow-sm border border-black/5 dark:border-white/5 overflow-hidden">
+                  <h2 className="text-2xl font-black text-on-surface mb-2 font-headline uppercase tracking-tight px-8">Lake Network</h2>
+                  <p className="text-sm text-on-surface-variant opacity-70 mb-8 px-8">Real-time data from all monitored sensors in the Seattle area.</p>
+                  <div className="flex flex-col divide-y divide-black/5 dark:divide-white/5">
+                    {sortedBuoys.map((buoy) => {
+                      const isExpanded = expandedBuoyId === buoy.id;
+                      return (
+                        <div key={buoy.id} className="flex flex-col relative transition-all lg:hover:z-10 lg:hover:border-t-transparent lg:hover:[&+*]:border-t-transparent group/buoy">
+                          <Tooltip 
+                            side="top"
+                            align="center"
+                            className="w-[85vw] max-w-[320px] sm:max-w-[400px]"
+                            content={
+                              <div className="space-y-2 p-0.5 w-full">
+                                <div className="flex items-center justify-between gap-4">
+                                  <h4 className="text-[10px] font-black uppercase tracking-tight text-primary leading-none italic">Buoy <span className="text-on-surface not-italic">Location</span></h4>
+                                  <span className="text-[8px] font-bold opacity-50 font-mono">{buoy.lat?.toFixed(4)}, {buoy.lon?.toFixed(4)}</span>
+                                </div>
+                                <div className="w-full aspect-[2/1] rounded-lg overflow-hidden border border-black/10 dark:border-white/10 shadow-inner bg-black/20">
+                                  <img
+                                    src={`https://static-maps.yandex.ru/1.x/?ll=${buoy.lon},${buoy.lat}&z=11&l=map&size=450,225&pt=${buoy.lon},${buoy.lat},pm2rdm&lang=en_US`}
+                                    alt={`Map showing ${buoy.name}`}
+                                    className="w-full h-full object-cover opacity-80"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                </div>
+                              </div>
+                            }
+                          >
+                            <motion.div 
+                              whileTap={{ scale: 0.98 }} 
+                              onClick={() => setExpandedBuoyId(isExpanded ? null : buoy.id)} 
+                              className={`relative py-5 px-8 flex items-center justify-between cursor-pointer transition-all overflow-hidden ${selectedBuoy === buoy.name ? "bg-primary/10" : "lg:group-hover/buoy:bg-black/10 lg:dark:group-hover/buoy:bg-white/10"}`}
+                            >
+                              <div className="relative z-10 flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border transition-all ${buoy.active ? "bg-[#ccff00]/10 text-[#718800] dark:text-[#ccff00] border-[#718800]/30 dark:border-[#ccff00]/20 shadow-[0_0_10px_rgba(204,255,0,0.1)]" : "bg-on-surface-variant/10 text-on-surface-variant border-transparent"}`}><MapPin className="w-5 h-5" /></div>
+                                <div>
+                                  <h3 className="text-base font-black text-on-surface uppercase tracking-tight">{buoy.name}</h3>
+                                  <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.1em]">{buoy.lat?.toFixed(3) || "0.000"}, {buoy.lon?.toFixed(3) || "0.000"}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-5">
+                                <div className="text-right">
+                                  <p className={`text-2xl font-black drop-shadow-sm ${getTemperatureColor(buoy.tempF || 0)}`}>{buoy.tempC ? (unit === "F" ? buoy.tempF : buoy.tempC) : "--"}°</p>
+                                  <span className={`text-[10px] font-black uppercase tracking-widest ${buoy.active ? "text-[#718800] dark:text-[#ccff00]" : "text-on-surface-variant"}`}>{buoy.active ? "Active" : "Offline"}</span>
+                                </div>
+                                <ChevronRight className={`w-5 h-5 text-primary/40 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                              </div>
+                            </motion.div>
+                          </Tooltip>
+
+                          <AnimatePresence>
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden bg-surface-container-highest/30 px-8 py-6 transition-all lg:group-hover/buoy:bg-black/10 lg:dark:group-hover/buoy:bg-white/10"
+                              >
+                                <div className="space-y-4">
+                                  <div className="flex items-center justify-between">
+                                    <div className="space-y-1">
+                                      <h4 className="text-[10px] font-black uppercase tracking-tight text-primary leading-none italic">Buoy <span className="text-on-surface not-italic">Location</span></h4>
+                                      <p className="text-[11px] font-bold text-on-surface-variant font-mono">{buoy.lat?.toFixed(4)}, {buoy.lon?.toFixed(4)}</p>
+                                    </div>
+                                  </div>
+                                  <div className="w-full aspect-[2/1] rounded-xl overflow-hidden border border-black/10 dark:border-white/10 shadow-inner group relative">
+                                    <img
+                                      src={`https://static-maps.yandex.ru/1.x/?ll=${buoy.lon},${buoy.lat}&z=${mapZoom[buoy.id] || 11}&l=map&size=450,225&pt=${buoy.lon},${buoy.lat},pm2rdm&lang=en_US`}
+                                      alt={`Map showing ${buoy.name}`}
+                                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                                    
+                                    {/* Zoom Controls */}
+                                    <div className="absolute bottom-3 right-3 flex flex-col gap-2">
+                                      <motion.button
+                                        whileTap={{ scale: 0.9 }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const currentZ = mapZoom[buoy.id] || 11;
+                                          if (currentZ < 17) {
+                                            setMapZoom(prev => ({ ...prev, [buoy.id]: currentZ + 1 }));
+                                          }
+                                        }}
+                                        className="w-8 h-8 bg-surface/90 backdrop-blur-md rounded-lg flex items-center justify-center text-on-surface shadow-lg border border-black/5 dark:border-white/10"
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </motion.button>
+                                      <motion.button
+                                        whileTap={{ scale: 0.9 }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const currentZ = mapZoom[buoy.id] || 11;
+                                          if (currentZ > 1) {
+                                            setMapZoom(prev => ({ ...prev, [buoy.id]: currentZ - 1 }));
+                                          }
+                                        }}
+                                        className="w-8 h-8 bg-surface/90 backdrop-blur-md rounded-lg flex items-center justify-center text-on-surface shadow-lg border border-black/5 dark:border-white/10"
+                                      >
+                                        <Minus className="w-4 h-4" />
+                                      </motion.button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </motion.div>
@@ -1153,13 +1262,28 @@ export default function App() {
       <nav className="shrink-0 z-50 bg-surface/80 backdrop-blur-xl border-t border-black/5 dark:border-white/5 pb-safe">
         <div className="flex justify-around items-center px-4 pt-4 pb-6">
           <Tooltip content="Home Dashboard">
-            <Link to="/" className={`flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === "current" ? "text-primary" : "text-on-surface/40"}`}><LayoutDashboard className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">Dashboard</span></Link>
+            <Link to="/" className={`flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === "current" ? "text-primary" : "text-on-surface/40"}`}>
+              <motion.div whileTap={{ scale: 0.9 }} className="flex flex-col items-center">
+                <LayoutDashboard className="w-6 h-6" />
+                <span className="text-[10px] font-bold mt-1">Dashboard</span>
+              </motion.div>
+            </Link>
           </Tooltip>
           <Tooltip content="History Trends">
-            <Link to="/history" className={`flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === "history" ? "text-primary" : "text-on-surface/40"}`}><HistoryIcon className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">History</span></Link>
+            <Link to="/history" className={`flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === "history" ? "text-primary" : "text-on-surface/40"}`}>
+              <motion.div whileTap={{ scale: 0.9 }} className="flex flex-col items-center">
+                <HistoryIcon className="w-6 h-6" />
+                <span className="text-[10px] font-bold mt-1">History</span>
+              </motion.div>
+            </Link>
           </Tooltip>
           <Tooltip content="Lake Network">
-            <Link to="/network" className={`flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === "map" ? "text-primary" : "text-on-surface/40"}`}><MapPin className="w-6 h-6" /><span className="text-[10px] font-bold mt-1">Network</span></Link>
+            <Link to="/network" className={`flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === "map" ? "text-primary" : "text-on-surface/40"}`}>
+              <motion.div whileTap={{ scale: 0.9 }} className="flex flex-col items-center">
+                <MapPin className="w-6 h-6" />
+                <span className="text-[10px] font-bold mt-1">Network</span>
+              </motion.div>
+            </Link>
           </Tooltip>
         </div>
       </nav>
