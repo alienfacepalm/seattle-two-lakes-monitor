@@ -72,6 +72,7 @@ import { HistoryCharts } from "./components/HistoryCharts";
 import { Tooltip } from "./components/Tooltip";
 import { TempLegend } from "./components/TempLegend";
 import { SettingsMenu } from "./components/SettingsMenu";
+import { TOSModal } from "./components/TOSModal";
 
 enum OperationType {
   CREATE = 'create',
@@ -212,6 +213,7 @@ export default function App() {
   const [isIOS, setIsIOS] = useState(false);
   const [showRadarModal, setShowRadarModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTOS, setShowTOS] = useState(false);
   const [isBasicMode, setIsBasicMode] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("basicMode") === "true";
@@ -552,39 +554,6 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {data?.radarStation && (
-            <Tooltip content="Live Radar">
-              <motion.button 
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setShowRadarModal(true)}
-                className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface lg:hover:bg-black/5 lg:dark:hover:bg-white/10 transition-colors cursor-pointer"
-              >
-                <Radar className="w-5 h-5" />
-              </motion.button>
-            </Tooltip>
-          )}
-          <Tooltip content={isDark ? "Light Mode" : "Dark Mode"}>
-            <motion.button 
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setIsDark(!isDark)} 
-              className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface lg:hover:bg-black/5 lg:dark:hover:bg-white/10 transition-colors cursor-pointer"
-            >
-              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </motion.button>
-          </Tooltip>
-          <Tooltip content="Refresh Data">
-            <motion.button 
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={fetchData} 
-              disabled={refreshing} 
-              className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface lg:hover:bg-black/5 lg:dark:hover:bg-white/10 transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              <RefreshCw className={`w-5 h-5 ${refreshing ? "animate-spin" : ""}`} />
-            </motion.button>
-          </Tooltip>
           <Tooltip content="Settings">
             <motion.button 
               whileHover={{ scale: 1.1 }}
@@ -604,7 +573,15 @@ export default function App() {
           onClose={() => setShowSettings(false)}
           isBasicMode={isBasicMode}
           onToggleBasicMode={setIsBasicMode}
+          isDark={isDark}
+          onToggleDark={setIsDark}
+          onRefresh={fetchData}
+          isRefreshing={refreshing}
+          hasRadar={!!data?.radarStation}
+          onShowRadar={() => setShowRadarModal(true)}
+          onShowTOS={() => setShowTOS(true)}
         />
+        <TOSModal isOpen={showTOS} onClose={() => setShowTOS(false)} />
         <AnimatePresence mode="wait">
           <Routes location={location}>
             <Route path="/" element={
@@ -1194,7 +1171,15 @@ export default function App() {
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="space-y-6">
                 <div className="bg-surface-container-low rounded-[2rem] pt-8 pb-4 shadow-sm border border-black/5 dark:border-white/5 overflow-hidden">
                   <h2 className="text-2xl font-black text-on-surface mb-2 font-headline uppercase tracking-tight px-8">Lake Network</h2>
-                  <p className="text-sm text-on-surface-variant opacity-70 mb-8 px-8">Real-time data from all monitored sensors in the Seattle area.</p>
+                  <p className="text-sm text-on-surface-variant opacity-70 mb-6 px-8">Real-time data from all monitored sensors in the Seattle area.</p>
+                  
+                  <div className="mx-8 mb-8 bg-surface-container-highest/20 rounded-2xl p-4 border border-black/5 dark:border-white/5">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-60 mb-2 italic">A Note on Map Sources</p>
+                    <p className="text-xs font-semibold leading-relaxed text-on-surface-variant">
+                      The maps used across this site are <span className="text-primary font-black uppercase tracking-wider">FREE geo maps</span>. That's it. It's not a Russian coup—it's just free stuff we couldn't find for free elsewhere.
+                    </p>
+                  </div>
+
                   <div className="flex flex-col divide-y divide-black/5 dark:divide-white/5">
                     {sortedBuoys.map((buoy) => {
                       const isExpanded = expandedBuoyId === buoy.id;
@@ -1315,7 +1300,7 @@ export default function App() {
       </main>
 
       <nav className="shrink-0 z-50 bg-surface/80 backdrop-blur-xl border-t border-black/5 dark:border-white/5 pb-safe">
-        <div className="flex justify-around items-center px-4 pt-4 pb-6">
+        <div className="flex justify-around items-center px-4 pt-4 pb-2">
           <Tooltip content="Home Dashboard">
             <Link to="/" className={`flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === "current" ? "text-primary" : "text-on-surface/40"}`}>
               <motion.div whileTap={{ scale: 0.9 }} className="flex flex-col items-center">
@@ -1340,6 +1325,11 @@ export default function App() {
               </motion.div>
             </Link>
           </Tooltip>
+        </div>
+        <div className="text-center pb-2">
+          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-on-surface-variant opacity-30">
+            Proudly made by Buck Polanski
+          </p>
         </div>
       </nav>
 
@@ -1426,7 +1416,7 @@ export default function App() {
               </div>
               <div className="px-6 py-3 bg-surface/30 backdrop-blur-sm border-t border-black/5 dark:border-white/5 text-center">
                  <p className="text-[9px] text-on-surface-variant opacity-40 uppercase font-bold tracking-[0.2em]">
-                   Data provided by NOAA / National Weather Service
+                   Data provided by NOAA / National Weather Service (plus FREE geo maps—no Russian coup here! Just free stuff we couldn't find for free elsewhere.)
                  </p>
               </div>
             </motion.div>
@@ -1434,12 +1424,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Beta Label */}
-      <div className="fixed bottom-24 left-4 z-[60] pointer-events-none">
-        <div className="bg-primary/10 backdrop-blur-md border border-primary/20 px-3 py-1 rounded-full">
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Beta</span>
-        </div>
-      </div>
     </div>
     </ErrorBoundary>
   );
