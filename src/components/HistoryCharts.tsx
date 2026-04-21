@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from "recharts";
-import { Thermometer, Wind, CloudRain, Droplets } from "lucide-react";
+import { Thermometer, Wind, CloudRain, Droplets, CalendarRange } from "lucide-react";
 import { HistoryPoint } from "../types";
 
 interface HistoryChartsProps {
@@ -12,7 +12,30 @@ interface HistoryChartsProps {
   hasDewpointData: boolean;
 }
 
+type TimeRange = "6h" | "12h" | "24h" | "48h" | "72h" | "1w" | "1m" | "1y";
+
 export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isDark, hasPrecipitationData, hasHumidityData, hasDewpointData }) => {
+  const [range, setRange] = useState<TimeRange>("24h");
+
+  const filteredHistory = useMemo(() => {
+    if (!history.length) return [];
+    
+    const now = new Date().getTime();
+    const rangeMs = {
+      "6h": 6 * 60 * 60 * 1000,
+      "12h": 12 * 60 * 60 * 1000,
+      "24h": 24 * 60 * 60 * 1000,
+      "48h": 48 * 60 * 60 * 1000,
+      "72h": 72 * 60 * 60 * 1000,
+      "1w": 7 * 24 * 60 * 60 * 1000,
+      "1m": 30 * 24 * 60 * 60 * 1000,
+      "1y": 365 * 24 * 60 * 60 * 1000,
+    }[range];
+
+    const cutoff = now - rangeMs;
+    return history.filter(p => new Date(p.time).getTime() >= cutoff);
+  }, [history, range]);
+
   const tooltipStyle = { 
     backgroundColor: isDark ? 'rgba(28, 28, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)', 
     border: 'none', 
@@ -23,8 +46,59 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
     boxShadow: '0 4px 12px rgba(0,0,0,0.1)' 
   };
 
+  const ranges: { label: string; value: TimeRange }[] = [
+    { label: "6H", value: "6h" },
+    { label: "12H", value: "12h" },
+    { label: "24H", value: "24h" },
+    { label: "1W", value: "1w" },
+    { label: "1M", value: "1m" },
+    { label: "1Y", value: "1y" },
+  ];
+
+  const formatTick = (time: string) => {
+    const d = new Date(time);
+    const hh = d.getHours().toString().padStart(2, '0');
+    const mm = d.getMinutes().toString().padStart(2, '0');
+    
+    if (range === "1y") {
+      return `${d.getMonth() + 1}/${d.getFullYear().toString().slice(-2)}`;
+    }
+    if (range === "1m") {
+      return `${d.getMonth() + 1}/${d.getDate()}`;
+    }
+    if (range === "48h" || range === "72h" || range === "1w") {
+      return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`;
+    }
+    return `${hh}:${mm}`;
+  };
+
   return (
     <div className="space-y-6">
+      {/* Time Range Selector */}
+      <section className="bg-surface-container-highest/30 rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-on-surface-variant">
+            <CalendarRange className="w-4 h-4" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Time Range</span>
+          </div>
+          <div className="flex p-1 bg-surface-container-highest/50 rounded-xl w-fit flex-wrap">
+            {ranges.map((r) => (
+              <button
+                key={r.value}
+                onClick={() => setRange(r.value)}
+                className={`px-3 py-1 rounded-lg text-[10px] font-black transition-all ${
+                  range === r.value 
+                    ? "bg-surface shadow-sm text-primary" 
+                    : "text-on-surface-variant opacity-50 hover:opacity-100"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Temperature Trend */}
       <section className="bg-surface-container-highest/30 rounded-[2rem] p-6 border border-black/5 dark:border-white/5">
         <div className="flex items-center gap-2 mb-6 text-on-surface-variant">
@@ -33,7 +107,7 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
         </div>
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={history}>
+            <AreaChart data={filteredHistory}>
               <defs>
                 <linearGradient id="colorWaterHist" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#007aff" stopOpacity={0.3}/>
@@ -45,7 +119,15 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
-              <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
+              <XAxis 
+                dataKey="time" 
+                tickFormatter={formatTick} 
+                stroke="var(--color-on-surface-variant)" 
+                fontSize={10} 
+                tickLine={false} 
+                axisLine={false} 
+                opacity={0.5} 
+              />
               <YAxis domain={['auto', 'auto']} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}°`} opacity={0.5} />
               <Tooltip contentStyle={tooltipStyle} itemStyle={{ fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
               <Area type="monotone" name="Water Temp" dataKey={unit === "F" ? "tempF" : "tempC"} stroke="#007aff" strokeWidth={3} fillOpacity={1} fill="url(#colorWaterHist)" connectNulls />
@@ -63,7 +145,7 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
         </div>
         <div className="h-48 w-full relative">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={history}>
+            <AreaChart data={filteredHistory}>
               <defs>
                 <linearGradient id="colorWindHist" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
@@ -71,7 +153,15 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
-              <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
+              <XAxis 
+                dataKey="time" 
+                tickFormatter={formatTick} 
+                stroke="var(--color-on-surface-variant)" 
+                fontSize={10} 
+                tickLine={false} 
+                axisLine={false} 
+                opacity={0.5} 
+              />
               <YAxis stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
               <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#10b981', fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
               <Area type="monotone" name="Wind Speed" dataKey="windSpeed" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorWindHist)" connectNulls />
@@ -89,9 +179,17 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
           </div>
           <div className="h-40 w-full relative">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={history}>
+              <BarChart data={filteredHistory}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
-                <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
+                <XAxis 
+                  dataKey="time" 
+                  tickFormatter={formatTick} 
+                  stroke="var(--color-on-surface-variant)" 
+                  fontSize={10} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  opacity={0.5} 
+                />
                 <YAxis stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}"`} opacity={0.5} />
                 <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#3b82f6', fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
                 <Bar name="Precipitation" dataKey="precipitation" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -110,7 +208,7 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
           </div>
           <div className="h-40 w-full relative">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={history}>
+              <AreaChart data={filteredHistory}>
                 <defs>
                   <linearGradient id="colorHumHist" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
@@ -118,7 +216,15 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
-                <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
+                <XAxis 
+                  dataKey="time" 
+                  tickFormatter={formatTick} 
+                  stroke="var(--color-on-surface-variant)" 
+                  fontSize={10} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  opacity={0.5} 
+                />
                 <YAxis domain={[0, 100]} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}%`} opacity={0.5} />
                 <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#8b5cf6', fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
                 <Area type="monotone" name="Humidity" dataKey="humidity" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorHumHist)" connectNulls />
@@ -137,7 +243,7 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
           </div>
           <div className="h-40 w-full relative">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={history}>
+              <AreaChart data={filteredHistory}>
                 <defs>
                   <linearGradient id="colorDewHist" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#ec4899" stopOpacity={0.3}/>
@@ -145,7 +251,15 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-on-surface-variant)" opacity={0.05} />
-                <XAxis dataKey="time" tickFormatter={(time) => new Date(time).getHours() + ":00"} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} opacity={0.5} />
+                <XAxis 
+                  dataKey="time" 
+                  tickFormatter={formatTick} 
+                  stroke="var(--color-on-surface-variant)" 
+                  fontSize={10} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  opacity={0.5} 
+                />
                 <YAxis domain={['auto', 'auto']} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}°`} opacity={0.5} />
                 <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#ec4899', fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
                 <Area type="monotone" name="Dew Point" dataKey={unit === "F" ? "dewpointF" : "dewpoint"} stroke="#ec4899" strokeWidth={3} fillOpacity={1} fill="url(#colorDewHist)" connectNulls />

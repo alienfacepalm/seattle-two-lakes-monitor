@@ -309,8 +309,9 @@ export default function App() {
           };
         })
         .filter(p => p.time && !isNaN(new Date(p.time).getTime())) // Filter out invalid points
-        .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
-        .slice(-48); // Keep last 48 points
+        .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+      
+      console.log(`[Firestore] Sorted ${historyData.length} records for history`);
       
       setHistory(historyData);
     }, (err) => {
@@ -612,7 +613,7 @@ export default function App() {
                       <div className="flex justify-between items-start">
                         <div>
                           <h2 className="text-2xl font-semibold text-on-surface">{data?.location?.endsWith("Buoy") ? data.location : `${data?.location} Buoy`}</h2>
-                          <p className="text-on-surface-variant text-sm font-medium opacity-70">
+                          <p className="text-on-surface text-sm font-medium">
                             {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                           </p>
                         </div>
@@ -625,13 +626,13 @@ export default function App() {
                         <div className="flex items-center gap-4">
                           <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/10 shadow-sm">
                             {(data?.tempC === null || data?.tempC === undefined) && data?.status === "ACTIVE" ? (
-                              <WifiOff className="w-8 h-8 text-on-surface-variant opacity-30" />
+                              <WifiOff className="w-8 h-8 text-on-surface opacity-60" />
                             ) : (
                               getConditionIcon(data?.condition || "")
                             )}
                           </div>
                           <div className="flex flex-col items-center">
-                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-80">Water Temperature</span>
+                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface">Water Temperature</span>
                             <span className="text-7xl font-light tracking-tighter text-on-surface">
                               {data?.tempC !== null && data?.tempC !== undefined
                                 ? `${Math.round(unit === "F" ? (data.tempF ?? 0) : (data.tempC ?? 0))}°`
@@ -644,7 +645,7 @@ export default function App() {
                             ? (data?.tempC === null || data?.tempC === undefined ? "Water Temp Unavailable" : `${data?.condition} Conditions`) 
                             : (lastWaterTempPoint ? "Last Recorded" : "Sensor Offline")}
                         </p>
-                        <div className="flex gap-3 mt-1 text-on-surface-variant font-medium">
+                        <div className="flex gap-3 mt-1 text-on-surface font-semibold">
                           {(data?.tempC !== null || lastWaterTempPoint) && (
                             <>
                               <span>H:{Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) + 2)}°</span>
@@ -656,8 +657,11 @@ export default function App() {
                       <div className="mt-8 pt-6 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className={`w-2 h-2 rounded-full animate-pulse border border-black/10 dark:border-white/10 ${data?.status === "ACTIVE" ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`}></span>
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-                            {data?.status === "ACTIVE" ? "Live Buoy" : "Offline Mode"}
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface flex flex-wrap items-center gap-2">
+                            <span>{data?.status === "ACTIVE" ? "Live Buoy" : "Offline Mode"}</span>
+                            {history.length > 0 && (
+                              <span className="opacity-40 font-medium">· Collecting since {new Date(history[0].time).toLocaleDateString()}</span>
+                            )}
                           </span>
                         </div>
                         <div className="flex items-center gap-4">
@@ -673,10 +677,10 @@ export default function App() {
                             </a>
                           )}
                           <div className="text-right group cursor-default">
-                            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface-variant opacity-70 group-hover:opacity-100 group-hover:text-on-surface transition-all duration-300">Updated {new Date(data?.timestamp || "").toLocaleDateString()} at {new Date(data?.timestamp || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</p>
+                            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface transition-all duration-300">Updated {new Date(data?.timestamp || "").toLocaleDateString()} at {new Date(data?.timestamp || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</p>
                             <div className="flex items-center justify-end gap-1.5">
                               {isSyncing && <Database className="w-2.5 h-2.5 text-primary animate-pulse" />}
-                              <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface-variant opacity-50 group-hover:opacity-90 transition-all duration-300">Checked {lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</p>
+                              <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-on-surface transition-all duration-300">Checked {lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</p>
                             </div>
                           </div>
                         </div>
