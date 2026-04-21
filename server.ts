@@ -588,8 +588,8 @@ async function startServer() {
       const fallback = Object.entries(BUOY_CONFIGS).map(([buoyName, config]) => ({
         id: buoyName.toLowerCase().replace(/\s+/g, '-'),
         name: buoyName,
-        tempC: 14.0,
-        tempF: 57,
+        tempC: null,
+        tempF: null,
         lat: config.defaultLat,
         lon: config.defaultLon,
         active: false
@@ -639,11 +639,8 @@ async function startServer() {
         return res.json([]);
       }
 
-      const currentTempC = isNaN(tempC) ? 14.0 : tempC;
-      const currentAirTempC = parseFloat(parts[nameIndex + 2]);
-      const currentWindSpeed = parseFloat(parts[nameIndex + 3]);
-      // Real historical data is not available from the current API endpoint.
-      // Returning empty array to comply with "only use real data" requirement.
+      // Real historical data is not available from the current King County API endpoint.
+      // We rely on the background sync points saved in Firestore (accessed by the client).
       res.json([]);
     } catch (error) {
       console.error("Error generating history:", error);

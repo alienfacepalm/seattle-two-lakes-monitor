@@ -1111,13 +1111,34 @@ export default function App() {
                   <p className="text-sm text-on-surface-variant opacity-70 mb-8">Real-time data from all monitored sensors in the Seattle area.</p>
                   <div className="space-y-3">
                     {sortedBuoys.map((buoy) => (
-                      <motion.div key={buoy.id} whileTap={{ scale: 0.98 }} onClick={() => { setSelectedBuoy(buoy.name); navigate("/"); }} className={`relative rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-all overflow-hidden ${selectedBuoy === buoy.name ? "bg-primary/10 ring-1 ring-primary/20" : "bg-surface-container-highest hover:bg-black/10 dark:hover:bg-white/10"}`}>
-                        <div className="relative z-10 flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors ${buoy.active ? "bg-[#ccff00]/10 text-[#718800] dark:text-[#ccff00] border-[#718800]/30 dark:border-[#ccff00]/20" : "bg-on-surface-variant/10 text-on-surface-variant border-transparent"}`}><MapPin className="w-4 h-4" /></div>
-                          <div><h3 className="text-sm font-bold text-on-surface">{buoy.name}</h3><p className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">{buoy.lat?.toFixed(3) || "0.000"}, {buoy.lon?.toFixed(3) || "0.000"}</p></div>
-                        </div>
-                        <div className="text-right"><p className="text-lg font-bold text-on-surface">{buoy.tempC ? (unit === "F" ? buoy.tempF : buoy.tempC) : "--"}°</p><span className={`text-[8px] font-black uppercase tracking-widest ${buoy.active ? "text-[#718800] dark:text-[#ccff00]" : "text-on-surface-variant"}`}>{buoy.active ? "Active" : "Offline"}</span></div>
-                      </motion.div>
+                      <Tooltip 
+                        key={buoy.id}
+                        side="right"
+                        content={
+                          <div className="space-y-2 p-0.5">
+                            <div className="flex items-center justify-between gap-4">
+                              <h4 className="text-[10px] font-black uppercase tracking-tight text-primary leading-none italic">Buoy <span className="text-on-surface not-italic">Location</span></h4>
+                              <span className="text-[8px] font-bold opacity-50 font-mono">{buoy.lat?.toFixed(4)}, {buoy.lon?.toFixed(4)}</span>
+                            </div>
+                            <div className="w-[180px] h-[100px] rounded-lg overflow-hidden border border-black/10 dark:border-white/10 shadow-inner bg-black/20">
+                              <img
+                                src={`https://static-maps.yandex.ru/1.x/?ll=${buoy.lon},${buoy.lat}&z=11&l=map&size=180,100&pt=${buoy.lon},${buoy.lat},pm2rdm&lang=en_US`}
+                                alt={`Map showing ${buoy.name}`}
+                                className="w-full h-full object-cover opacity-80"
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                          </div>
+                        }
+                      >
+                        <motion.div whileTap={{ scale: 0.98 }} onClick={() => { setSelectedBuoy(buoy.name); navigate("/"); }} className={`relative rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-all overflow-hidden ${selectedBuoy === buoy.name ? "bg-primary/10 ring-1 ring-primary/20" : "bg-surface-container-highest hover:bg-black/10 dark:hover:bg-white/10"}`}>
+                          <div className="relative z-10 flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors ${buoy.active ? "bg-[#ccff00]/10 text-[#718800] dark:text-[#ccff00] border-[#718800]/30 dark:border-[#ccff00]/20" : "bg-on-surface-variant/10 text-on-surface-variant border-transparent"}`}><MapPin className="w-4 h-4" /></div>
+                            <div><h3 className="text-sm font-bold text-on-surface">{buoy.name}</h3><p className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">{buoy.lat?.toFixed(3) || "0.000"}, {buoy.lon?.toFixed(3) || "0.000"}</p></div>
+                          </div>
+                          <div className="text-right"><p className="text-lg font-bold text-on-surface">{buoy.tempC ? (unit === "F" ? buoy.tempF : buoy.tempC) : "--"}°</p><span className={`text-[8px] font-black uppercase tracking-widest ${buoy.active ? "text-[#718800] dark:text-[#ccff00]" : "text-on-surface-variant"}`}>{buoy.active ? "Active" : "Offline"}</span></div>
+                        </motion.div>
+                      </Tooltip>
                     ))}
                   </div>
                 </div>
