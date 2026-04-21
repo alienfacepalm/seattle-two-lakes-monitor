@@ -5,8 +5,6 @@ import { X, Layout, Zap, Moon, Sun, RefreshCw, Radar, FileText, ExternalLink } f
 interface SettingsMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  isBasicMode: boolean;
-  onToggleBasicMode: (val: boolean) => void;
   isDark: boolean;
   onToggleDark: (val: boolean) => void;
   onRefresh: () => void;
@@ -19,8 +17,6 @@ interface SettingsMenuProps {
 export const SettingsMenu = ({ 
   isOpen, 
   onClose, 
-  isBasicMode, 
-  onToggleBasicMode,
   isDark,
   onToggleDark,
   onRefresh,
@@ -64,34 +60,6 @@ export const SettingsMenu = ({
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-4 ml-1">Appearance</h3>
                 
                 <div className="space-y-3">
-                  {/* Basic Mode */}
-                  <button 
-                    onClick={() => onToggleBasicMode(!isBasicMode)}
-                    className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ${
-                      isBasicMode 
-                      ? 'bg-primary/10 border-primary/20 shadow-sm' 
-                      : 'bg-surface-container-low border-black/5 dark:border-white/10 hover:bg-surface-container'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                        isBasicMode ? 'bg-primary text-white' : 'bg-surface-container-highest text-on-surface'
-                      }`}>
-                        {isBasicMode ? <Zap className="w-5 h-5" /> : <Layout className="w-5 h-5" />}
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-black text-on-surface uppercase tracking-tight leading-none mb-1">Basic Mode</p>
-                        <p className="text-[10px] font-bold text-on-surface-variant leading-none">Minimal information</p>
-                      </div>
-                    </div>
-                    <div className={`w-10 h-5 rounded-full relative transition-colors ${isBasicMode ? 'bg-primary' : 'bg-black/10 dark:bg-white/10'}`}>
-                      <motion.div 
-                        animate={{ x: isBasicMode ? 22 : 2 }}
-                        className="absolute top-1 left-1 w-3 h-3 bg-white rounded-full"
-                      />
-                    </div>
-                  </button>
-
                   {/* Dark Mode */}
                   <button 
                     onClick={() => onToggleDark(!isDark)}

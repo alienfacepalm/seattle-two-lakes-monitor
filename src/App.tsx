@@ -193,11 +193,18 @@ export default function App() {
   const [selectedBuoy, setSelectedBuoy] = useState(() => localStorage.getItem("selectedBuoy") || "Lake Sammamish");
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("theme") === "dark" || 
-             (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      const stored = localStorage.getItem("theme");
+      if (stored) return stored === "dark";
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
     }
     return false;
   });
+
+  const handleToggleDark = (val: boolean) => {
+    setIsDark(val);
+    localStorage.setItem("theme", val ? "dark" : "light");
+  };
+
   const [error, setError] = useState<string | null>(null);
   const [lastFetchTime, setLastFetchTime] = useState<Date>(new Date());
   const [timeOfDay, setTimeOfDay] = useState("day");
@@ -214,12 +221,6 @@ export default function App() {
   const [showRadarModal, setShowRadarModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showTOS, setShowTOS] = useState(false);
-  const [isBasicMode, setIsBasicMode] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("basicMode") === "true";
-    }
-    return false;
-  });
   const [expandedBuoyId, setExpandedBuoyId] = useState<string | null>(null);
   const [expandedForecastIdx, setExpandedForecastIdx] = useState<number | null>(null);
   const [mapZoom, setMapZoom] = useState<Record<string, number>>({});
@@ -443,12 +444,24 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (e: MediaQueryListEvent) => {
+      if (!localStorage.getItem("theme")) {
+        setIsDark(e.matches);
+      }
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
     } else {
       document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
     }
   }, [isDark]);
 
@@ -519,32 +532,24 @@ export default function App() {
     setShowInstallPrompt(false);
   };
 
-  useEffect(() => {
-    localStorage.setItem("basicMode", String(isBasicMode));
-  }, [isBasicMode]);
-
   return (
     <ErrorBoundary>
-      <div className={`h-screen flex flex-col overflow-hidden transition-colors duration-300 bg-surface relative ${isBasicMode ? 'is-basic-mode' : ''}`}>
+      <div className={`h-screen flex flex-col overflow-hidden transition-colors duration-300 bg-surface relative`}>
       <ScrollToTop />
-      {!isBasicMode && (
-        <>
-          <div className={`lake-bg lake-bg-${timeOfDay}`} />
-          <div className="lake-waves" />
-        </>
-      )}
+      <>
+        <div className={`lake-bg lake-bg-${timeOfDay}`} />
+        <div className="lake-waves" />
+      </>
 
       <header className="shrink-0 z-50 bg-surface/70 backdrop-blur-2xl flex items-center justify-between px-4 sm:px-6 min-h-[4rem] border-b border-black/5 dark:border-white/5 pt-safe">
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="relative shrink-0">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              {isBasicMode ? <Zap className="text-primary w-6 h-6" /> : <Mountain className="text-primary w-6 h-6" />}
+              <Mountain className="text-primary w-6 h-6" />
             </div>
-            {!isBasicMode && (
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-surface rounded-full flex items-center justify-center shadow-sm border border-black/5 dark:border-white/10">
-                <Waves className="text-primary w-3 h-3" />
-              </div>
-            )}
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-surface rounded-full flex items-center justify-center shadow-sm border border-black/5 dark:border-white/10">
+              <Waves className="text-primary w-3 h-3" />
+            </div>
           </div>
           <div className="flex flex-col -space-y-0.5 sm:-space-y-1">
             <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-primary/70 leading-none">Seattle</span>
@@ -567,14 +572,12 @@ export default function App() {
         </div>
       </header>
 
-      <main className={`flex-1 overflow-y-auto px-4 pt-6 pb-32 max-w-4xl mx-auto w-full relative ${isBasicMode ? 'is-basic-mode' : ''}`}>
+      <main className={`flex-1 overflow-y-auto px-4 pt-6 pb-32 max-w-4xl mx-auto w-full relative`}>
         <SettingsMenu 
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
-          isBasicMode={isBasicMode}
-          onToggleBasicMode={setIsBasicMode}
           isDark={isDark}
-          onToggleDark={setIsDark}
+          onToggleDark={handleToggleDark}
           onRefresh={fetchData}
           isRefreshing={refreshing}
           hasRadar={!!data?.radarStation}
@@ -661,15 +664,13 @@ export default function App() {
                   </AnimatePresence>
 
                   {/* Current Conditions Card */}
-                  <section className={`relative overflow-hidden ${isBasicMode ? 'p-0 mb-8' : 'bg-surface-container-low rounded-[2.5rem] p-8 shadow-sm border border-black/5 dark:border-white/5'}`}>
-                    {!isBasicMode && (
-                      <img 
-                        src={getBuoyBackground()} 
-                        alt="Background" 
-                        className="absolute inset-0 w-full h-full object-cover opacity-[0.4] dark:opacity-[0.5] pointer-events-none select-none" 
-                        referrerPolicy="no-referrer" 
-                      />
-                    )}
+                  <section className={`relative overflow-hidden bg-surface-container-low rounded-[2.5rem] p-8 shadow-sm border border-black/5 dark:border-white/5`}>
+                    <img 
+                      src={getBuoyBackground()} 
+                      alt="Background" 
+                      className="absolute inset-0 w-full h-full object-cover opacity-[0.4] dark:opacity-[0.5] pointer-events-none select-none" 
+                      referrerPolicy="no-referrer" 
+                    />
                     <div className="relative z-10">
                       <div className="flex justify-between items-start">
                         <div>
@@ -687,20 +688,18 @@ export default function App() {
                           </Tooltip>
                         </div>
                       </div>
-                      <div className={`mt-8 flex flex-col items-center ${isBasicMode ? 'bg-surface-container-low p-10 rounded-[3rem] border border-black/10 dark:border-white/10' : ''}`}>
+                      <div className={`mt-8 flex flex-col items-center`}>
                         <div className="flex items-center gap-4">
-                          {!isBasicMode && (
-                            <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/10 shadow-sm">
-                              {(data?.tempC === null || data?.tempC === undefined) && data?.status === "ACTIVE" ? (
-                                <WifiOff className="w-8 h-8 text-on-surface opacity-60" />
-                              ) : (
-                                getConditionIcon(data?.condition || "", getTemperatureColor(data?.tempF ?? lastWaterTempPoint?.tempF ?? 0))
-                              )}
-                            </div>
-                          )}
+                          <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/10 shadow-sm">
+                            {(data?.tempC === null || data?.tempC === undefined) && data?.status === "ACTIVE" ? (
+                              <WifiOff className="w-8 h-8 text-on-surface opacity-60" />
+                            ) : (
+                              getConditionIcon(data?.condition || "", getTemperatureColor(data?.tempF ?? lastWaterTempPoint?.tempF ?? 0))
+                            )}
+                          </div>
                           <div className="flex flex-col items-center">
                             <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant mb-1">Water Temperature</span>
-                            <span className={`text-8xl font-black tracking-tighter drop-shadow-sm ${isBasicMode ? 'text-on-surface' : getTemperatureColor(data?.tempF ?? lastWaterTempPoint?.tempF ?? 0)}`}>
+                            <span className={`text-8xl font-black tracking-tighter drop-shadow-sm ${getTemperatureColor(data?.tempF ?? lastWaterTempPoint?.tempF ?? 0)}`}>
                               {data?.tempC !== null && data?.tempC !== undefined
                                 ? `${Math.round(unit === "F" ? (data.tempF ?? 0) : (data.tempC ?? 0))}°`
                                 : (data?.status === "ACTIVE" ? "--" : (lastWaterTempPoint ? `${Math.round(unit === "F" ? (lastWaterTempPoint.tempF ?? 0) : (lastWaterTempPoint.tempC ?? 0))}°` : "--"))}
@@ -715,16 +714,14 @@ export default function App() {
                         <div className="flex gap-4 mt-2 text-on-surface-variant font-black text-base drop-shadow-sm">
                           {(data?.tempC !== null || lastWaterTempPoint) && (
                             <>
-                              <span>H: <span className={isBasicMode ? '' : getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) + 2)}>{Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) + 2)}°</span></span>
-                              <span>L: <span className={isBasicMode ? '' : getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) - 3)}>{Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) - 3)}°</span></span>
+                              <span>H: <span className={getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) + 2)}>{Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) + 2)}°</span></span>
+                              <span>L: <span className={getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) - 3)}>{Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) - 3)}°</span></span>
                             </>
                           )}
                         </div>
-                        {!isBasicMode && (
-                          <div className="mt-6">
-                            <TempLegend unit={unit} />
-                          </div>
-                        )}
+                        <div className="mt-6">
+                          <TempLegend unit={unit} />
+                        </div>
                       </div>
                       <div className="mt-8 pt-6 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -743,14 +740,12 @@ export default function App() {
                         <div className="flex items-center gap-4">
                           <div className="text-right group cursor-default">
                             <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-on-surface-variant">
-                              <span className="sm:hidden text-primary font-black">UPD:</span>
-                              <span className="hidden sm:inline text-primary font-black">Updated</span> <span className="text-on-surface">{new Date(data?.timestamp || "").toLocaleDateString()}</span> at <span className="text-on-surface">{new Date(data?.timestamp || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                              <span className="text-primary font-black">Updated</span> <span className="text-on-surface">{new Date(data?.timestamp || "").toLocaleDateString()}</span> at <span className="text-on-surface">{new Date(data?.timestamp || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
                             </p>
                             <div className="flex items-center justify-end gap-1.5 mt-0.5">
                               {isSyncing && <Database className="w-4 h-4 text-primary animate-pulse" />}
                               <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-on-surface-variant">
-                                <span className="sm:hidden text-primary font-black">CHK:</span>
-                                <span className="hidden sm:inline text-primary font-black">Checked</span> <span className="text-on-surface">{lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span>
+                                <span className="text-primary font-black">Checked</span> <span className="text-on-surface">{lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span>
                               </p>
                             </div>
                           </div>
@@ -760,8 +755,7 @@ export default function App() {
                   </section>
 
                   {/* Hourly Forecast */}
-                  {!isBasicMode && (
-                    <section className="bg-surface-container-low rounded-[2rem] p-6 mt-6 shadow-sm border border-black/5 dark:border-white/5">
+                  <section className="bg-surface-container-low rounded-[2rem] p-6 mt-6 shadow-sm border border-black/5 dark:border-white/5">
                       <div className="flex items-center gap-2 text-on-surface-variant mb-6 px-1">
                         <Clock className="w-4 h-4" />
                         <span className="text-xs font-black uppercase tracking-widest text-primary leading-none">Hourly Forecast</span>
@@ -817,10 +811,10 @@ export default function App() {
                         )}
                       </div>
                     </section>
-                  )}
+                  
 
                   {/* 7-Day Forecast */}
-                  {data?.dailyForecast && data.dailyForecast.length > 0 && !isBasicMode && (
+                  {data?.dailyForecast && data.dailyForecast.length > 0 && (
                     <section className="bg-surface-container-low rounded-[2rem] pt-6 pb-2 mt-6 shadow-sm border border-black/5 dark:border-white/5 overflow-hidden">
                       <div className="flex items-center gap-2 text-on-surface-variant mb-4 px-6">
                         <HistoryIcon className="w-4 h-4" />
@@ -896,9 +890,7 @@ export default function App() {
                         <div className={`flex items-center gap-3 text-3xl font-black tracking-tight ${
                           data?.tempF === null && data?.status === "ACTIVE" 
                             ? "text-on-surface-variant opacity-50" 
-                            : isBasicMode 
-                              ? "text-on-surface" 
-                              : (Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 60 ? "text-red-500" : Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 70 ? "text-orange-500" : "text-green-500")
+                            : (Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 60 ? "text-red-500" : Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 70 ? "text-orange-500" : "text-green-500")
                         }`}>
                           {data?.tempF === null && data?.status === "ACTIVE" ? (
                             <>
@@ -935,28 +927,25 @@ export default function App() {
                     </div>
 
                     {/* Wind */}
-                    {!isBasicMode && (
-                      <div className="bg-surface-container-low rounded-[2rem] p-4 sm:p-6 border border-black/5 dark:border-white/5">
-                        <div className="flex items-center gap-2 text-on-surface-variant mb-6 px-1">
-                          <Wind className="w-4 h-4" />
-                          <span className="text-xs font-black uppercase tracking-widest text-primary leading-none">Wind Speed</span>
-                        </div>
-                        <div className="flex flex-col items-center">
-                          <p className="text-5xl font-black text-on-surface drop-shadow-sm">
-                            {data?.windSpeed !== null && data?.windSpeed !== undefined && !isNaN(Number(data.windSpeed))
-                              ? data.windSpeed
-                              : (lastWindPoint ? lastWindPoint.windSpeed : "0")}
-                          </p>
-                          <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant mt-2">
-                            {data?.windSpeed !== null && data?.windSpeed !== undefined ? "MPH" : "Last Hour"}
-                          </p>
-                        </div>
+                    <div className="bg-surface-container-low rounded-[2rem] p-4 sm:p-6 border border-black/5 dark:border-white/5">
+                      <div className="flex items-center gap-2 text-on-surface-variant mb-6 px-1">
+                        <Wind className="w-4 h-4" />
+                        <span className="text-xs font-black uppercase tracking-widest text-primary leading-none">Wind Speed</span>
                       </div>
-                    )}
+                      <div className="flex flex-col items-center">
+                        <p className="text-5xl font-black text-on-surface drop-shadow-sm">
+                          {data?.windSpeed !== null && data?.windSpeed !== undefined && !isNaN(Number(data.windSpeed))
+                            ? data.windSpeed
+                            : (lastWindPoint ? lastWindPoint.windSpeed : "0")}
+                        </p>
+                        <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant mt-2">
+                          {data?.windSpeed !== null && data?.windSpeed !== undefined ? "MPH" : "Last Hour"}
+                        </p>
+                      </div>
+                    </div>
 
                     {/* Air Temp */}
-                    {!isBasicMode && (
-                      <div className="bg-surface-container-low rounded-[2rem] p-4 sm:p-6 border border-black/5 dark:border-white/5">
+                    <div className="bg-surface-container-low rounded-[2rem] p-4 sm:p-6 border border-black/5 dark:border-white/5">
                       <div className="flex items-center gap-2 text-on-surface-variant mb-6 px-1">
                         <ThermometerSun className="w-4 h-4" />
                         <span className="text-xs font-black uppercase tracking-widest text-primary leading-none">Air Temp</span>
@@ -972,29 +961,26 @@ export default function App() {
                         </p>
                       </div>
                     </div>
-                  )}
-                                      {/* Dew Point */}
-                    {!isBasicMode && (
-                      <div className="bg-surface-container-low rounded-[2rem] p-4 sm:p-6 border border-black/5 dark:border-white/5">
-                        <div className="flex items-center gap-2 text-on-surface-variant mb-6 px-1">
-                          <ThermometerSnowflake className="w-4 h-4" />
-                          <span className="text-xs font-black uppercase tracking-widest text-primary leading-none">Dew Point</span>
-                        </div>
-                        <div className="flex flex-col items-center">
-                          <p className={`text-5xl font-black drop-shadow-sm ${isBasicMode ? 'text-on-surface' : getTemperatureColor((data?.dewpoint !== null && data?.dewpoint !== undefined ? data.dewpoint : (avgDewpoint ?? 0)) * 9/5 + 32)}`}>
-                            {data?.dewpoint !== null && data?.dewpoint !== undefined
-                              ? Math.round(unit === "F" ? (data.dewpoint * 9/5 + 32) : data.dewpoint)
-                              : (avgDewpoint !== null ? Math.round(unit === "F" ? (avgDewpoint * 9/5 + 32) : avgDewpoint) : "--")}°
-                          </p>
-                          <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant mt-2">
-                            {data?.dewpoint !== null ? "Atmospheric" : "24h Average"}
-                          </p>
-                        </div>
+                    {/* Dew Point */}
+                    <div className="bg-surface-container-low rounded-[2rem] p-4 sm:p-6 border border-black/5 dark:border-white/5">
+                      <div className="flex items-center gap-2 text-on-surface-variant mb-6 px-1">
+                        <ThermometerSnowflake className="w-4 h-4" />
+                        <span className="text-xs font-black uppercase tracking-widest text-primary leading-none">Dew Point</span>
                       </div>
-                    )}
+                      <div className="flex flex-col items-center">
+                        <p className={`text-5xl font-black drop-shadow-sm ${getTemperatureColor((data?.dewpoint !== null && data?.dewpoint !== undefined ? data.dewpoint : (avgDewpoint ?? 0)) * 9/5 + 32)}`}>
+                          {data?.dewpoint !== null && data?.dewpoint !== undefined
+                            ? Math.round(unit === "F" ? (data.dewpoint * 9/5 + 32) : data.dewpoint)
+                            : (avgDewpoint !== null ? Math.round(unit === "F" ? (avgDewpoint * 9/5 + 32) : avgDewpoint) : "--")}°
+                        </p>
+                        <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant mt-2">
+                          {data?.dewpoint !== null ? "Atmospheric" : "24h Average"}
+                        </p>
+                      </div>
+                    </div>
 
                     {/* Precipitation */}
-                    {currentPrecipitationAvailable && !isBasicMode && (
+                    {currentPrecipitationAvailable && (
                       <div className="bg-surface-container-low rounded-[2rem] p-4 sm:p-6 border border-black/5 dark:border-white/5">
                         <div className="flex items-center gap-2 text-on-surface-variant mb-6">
                           <CloudRain className="w-4 h-4" />
@@ -1014,7 +1000,7 @@ export default function App() {
                     )}
 
                     {/* Sunrise & Sunset */}
-                    {(data?.sunrise || data?.sunset) && !isBasicMode && (
+                    {(data?.sunrise || data?.sunset) && (
                       <div className="bg-surface-container-low rounded-[2rem] p-4 sm:p-6 border border-black/5 dark:border-white/5">
                         <div className="flex items-center gap-2 text-on-surface-variant mb-6 px-1">
                           <Sun className="w-4 h-4" />
@@ -1048,7 +1034,7 @@ export default function App() {
                     )}
 
                     {/* Humidity */}
-                    {currentHumidityAvailable && !isBasicMode && (
+                    {currentHumidityAvailable && (
                       <div className="bg-surface-container-low rounded-[2rem] p-4 sm:p-6 border border-black/5 dark:border-white/5">
                         <div className="flex items-center gap-2 text-on-surface-variant mb-6 px-1">
                           <Droplets className="w-4 h-4" />
