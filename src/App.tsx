@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useLayoutEffect, Component } from "react";
+import React, { useState, useEffect, useCallback, useLayoutEffect, useMemo, Component } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLocation, useNavigate, Routes, Route, Navigate, Link } from "react-router-dom";
 import { 
@@ -241,6 +241,13 @@ export default function App() {
   const hasDewpointData = dewpointPoints.length > 0;
   const avgDewpoint = hasDewpointData ? dewpointPoints.reduce((acc, p) => acc + (p.dewpoint ?? 0), 0) / dewpointPoints.length : null;
   const currentDewpointAvailable = (data?.dewpoint !== null && data?.dewpoint !== undefined) || (data?.hourlyForecast?.[0]?.dewpoint !== null && data?.hourlyForecast?.[0]?.dewpoint !== undefined) || hasDewpointData;
+  
+  const sortedBuoys = useMemo(() => {
+    return [...allBuoys].sort((a, b) => {
+      if (a.active === b.active) return a.name.localeCompare(b.name);
+      return a.active ? -1 : 1;
+    });
+  }, [allBuoys]);
 
   useEffect(() => {
     localStorage.setItem("selectedBuoy", selectedBuoy);
@@ -586,7 +593,7 @@ export default function App() {
                           exit={{ opacity: 0, y: 10, scale: 0.95 }} 
                           className="absolute top-full left-0 right-0 mt-2 bg-surface-container-highest backdrop-blur-xl border border-black/5 dark:border-white/10 rounded-2xl shadow-2xl z-[100] overflow-hidden"
                         >
-                          {allBuoys.map((buoy) => (
+                          {sortedBuoys.map((buoy) => (
                             <button 
                               key={buoy.id} 
                               onClick={() => { setSelectedBuoy(buoy.name); setIsDropdownOpen(false); }} 
@@ -1103,7 +1110,7 @@ export default function App() {
                   <h2 className="text-2xl font-black text-on-surface mb-2 font-headline uppercase tracking-tight">Lake Network</h2>
                   <p className="text-sm text-on-surface-variant opacity-70 mb-8">Real-time data from all monitored sensors in the Seattle area.</p>
                   <div className="space-y-3">
-                    {allBuoys.map((buoy) => (
+                    {sortedBuoys.map((buoy) => (
                       <motion.div key={buoy.id} whileTap={{ scale: 0.98 }} onClick={() => { setSelectedBuoy(buoy.name); navigate("/"); }} className={`relative rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-all overflow-hidden ${selectedBuoy === buoy.name ? "bg-primary/10 ring-1 ring-primary/20" : "bg-surface-container-highest hover:bg-black/10 dark:hover:bg-white/10"}`}>
                         <div className="relative z-10 flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors ${buoy.active ? "bg-[#ccff00]/10 text-[#718800] dark:text-[#ccff00] border-[#718800]/30 dark:border-[#ccff00]/20" : "bg-on-surface-variant/10 text-on-surface-variant border-transparent"}`}><MapPin className="w-4 h-4" /></div>
