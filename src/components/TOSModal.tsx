@@ -84,14 +84,14 @@ export const TOSModal: React.FC<TOSModalProps> = ({ isOpen, onClose }) => {
                 <section className="space-y-3">
                   <h4 className="text-xs font-black text-on-surface uppercase tracking-widest border-b border-black/5 dark:border-white/5 pb-2">4. Limitation of Liability</h4>
                   <p className="text-xs font-medium text-on-surface-variant leading-relaxed">
-                    In no event will Buck Polanski or associates be liable for damages of any kind, under any legal theory, arising out of or in connection with your use, or inability to use, the website.
+                    In no event will the developers or associates of 2lakes.app be liable for damages of any kind, under any legal theory, arising out of or in connection with your use, or inability to use, the website.
                   </p>
                 </section>
               </div>
 
               <div className="pt-8 text-center border-t border-black/5 dark:border-white/5">
                 <p className="text-[10px] font-bold text-on-surface-variant opacity-40 uppercase tracking-[0.2em]">
-                  Seattle, Washington • Proudly made by Buck Polanski
+                  Seattle, Washington
                 </p>
               </div>
             </div>

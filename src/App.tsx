@@ -1300,7 +1300,7 @@ export default function App() {
       </main>
 
       <nav className="shrink-0 z-50 bg-surface/80 backdrop-blur-xl border-t border-black/5 dark:border-white/5 pb-safe">
-        <div className="flex justify-around items-center px-4 pt-4 pb-2">
+        <div className="flex justify-around items-center px-4 pt-4 pb-6">
           <Tooltip content="Home Dashboard">
             <Link to="/" className={`flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === "current" ? "text-primary" : "text-on-surface/40"}`}>
               <motion.div whileTap={{ scale: 0.9 }} className="flex flex-col items-center">
@@ -1325,11 +1325,6 @@ export default function App() {
               </motion.div>
             </Link>
           </Tooltip>
-        </div>
-        <div className="text-center pb-2">
-          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-on-surface-variant opacity-30">
-            Proudly made by Buck Polanski
-          </p>
         </div>
       </nav>
 
