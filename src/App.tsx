@@ -783,34 +783,39 @@ export default function App() {
                       </div>
                       <div className="space-y-4">
                         {data.dailyForecast.slice(0, 10).map((day, idx) => (
-                          <div key={idx} className="flex items-center gap-4 group/day">
-                            <div className="flex items-center gap-4 w-[160px] sm:w-[200px] shrink-0">
-                              <Tooltip content={day.name} align="start">
-                                <span className="text-xs font-bold text-on-surface w-28 sm:w-36 shrink-0 inline-block truncate cursor-pointer">{day.name}</span>
-                              </Tooltip>
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 overflow-hidden shadow-sm relative shrink-0">
-                                <img 
-                                  src={day.icon} 
-                                  alt={day.shortForecast} 
-                                  className="w-full h-[220%] object-cover object-top" 
-                                  referrerPolicy="no-referrer" 
-                                />
-                                {day.precipitationProbability > 0 && (
-                                  <div className="absolute bottom-0.5 right-0.5 bg-primary/90 backdrop-blur-sm text-white text-[7px] font-black px-1 py-0.5 rounded-sm shadow-sm border border-white/10">
-                                    {day.precipitationProbability}%
-                                  </div>
-                                )}
+                          <Tooltip key={idx} content={
+                            <div className="space-y-1">
+                              <p className="font-black uppercase tracking-tighter text-primary leading-tight">{day.name}</p>
+                              <p className="text-[11px] leading-snug opacity-90">{day.detailedForecast || day.shortForecast}</p>
+                            </div>
+                          }>
+                            <div className="flex items-center gap-4 group/day p-2 -mx-2 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer">
+                              <div className="flex items-center gap-4 w-[160px] sm:w-[200px] shrink-0">
+                                <span className="text-xs font-bold text-on-surface w-28 sm:w-36 shrink-0 inline-block truncate">{day.name}</span>
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-surface-container flex items-center justify-center border border-black/5 dark:border-white/5 overflow-hidden shadow-sm relative shrink-0 transition-transform group-hover/day:scale-110">
+                                  <img 
+                                    src={day.icon} 
+                                    alt={day.shortForecast} 
+                                    className="w-full h-[220%] object-cover object-top" 
+                                    referrerPolicy="no-referrer" 
+                                  />
+                                  {day.precipitationProbability > 0 && (
+                                    <div className="absolute bottom-0.5 right-0.5 bg-primary/90 backdrop-blur-sm text-white text-[7px] font-black px-1 py-0.5 rounded-sm shadow-sm border border-white/10">
+                                      {day.precipitationProbability}%
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[10px] sm:text-xs font-medium text-on-surface-variant line-clamp-1 opacity-70 group-hover/day:opacity-100 transition-opacity">
+                                  {day.shortForecast}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-3 w-12 sm:w-16 justify-end shrink-0">
+                                <span className="text-sm sm:text-base font-black text-on-surface">{unit === "F" ? day.temp : Math.round((day.temp - 32) * 5/9)}°</span>
                               </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <Tooltip content={day.shortForecast} align="start">
-                                <p className="text-[10px] sm:text-xs font-medium text-on-surface-variant line-clamp-1 opacity-70 group-hover/day:opacity-100 transition-opacity cursor-pointer">{day.shortForecast}</p>
-                              </Tooltip>
-                            </div>
-                            <div className="flex items-center gap-3 w-12 sm:w-16 justify-end shrink-0">
-                              <span className="text-sm sm:text-base font-black text-on-surface">{unit === "F" ? day.temp : Math.round((day.temp - 32) * 5/9)}°</span>
-                            </div>
-                          </div>
+                          </Tooltip>
                         ))}
                       </div>
                     </section>
