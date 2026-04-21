@@ -23,8 +23,7 @@ export const TempLegend = ({ unit = "F" }: { unit?: "F" | "C" }) => {
   return (
     <>
       {/* Desktop Version */}
-      <div className="hidden sm:flex items-center gap-1.5 p-2 bg-surface-container/50 backdrop-blur-md rounded-xl border border-black/5 dark:border-white/5">
-        <span className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant mr-1">Scale</span>
+     <div className="hidden sm:flex items-center gap-1.5 p-2 bg-surface-container/50 backdrop-blur-md rounded-xl border border-black/5 dark:border-white/5">
         <div className="flex items-center gap-1">
           {TEMP_SCALE.map((step, idx) => (
             <Tooltip key={idx} content={
@@ -49,7 +48,7 @@ export const TempLegend = ({ unit = "F" }: { unit?: "F" | "C" }) => {
         id="mobile-legend-trigger"
       >
         <Info className="w-3 h-3 text-primary" />
-        <span className="text-[10px] font-black uppercase tracking-widest text-primary">View Temperature Scale</span>
+        <span className="text-[10px] font-black uppercase tracking-widest text-primary">View Temperature</span>
       </button>
 
       {/* Mobile Drawer */}
@@ -68,40 +67,40 @@ export const TempLegend = ({ unit = "F" }: { unit?: "F" | "C" }) => {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-surface-container-highest rounded-t-[2.5rem] z-[100] shadow-2xl p-8 border-t border-white/10"
+              className="fixed bottom-0 left-0 right-0 bg-surface-container-highest rounded-t-[2.5rem] z-[100] shadow-2xl px-6 py-6 border-t border-white/10"
               id="mobile-temp-scale-drawer"
             >
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-xl font-black text-on-surface uppercase tracking-tighter">Temperature Scale</h3>
-                  <p className="text-xs font-bold text-on-surface-variant">Thermal intensity color key ({unit})</p>
+                  <h3 className="text-lg font-black text-on-surface uppercase tracking-tighter">Temperature</h3>
+                  <p className="text-[10px] font-bold text-on-surface-variant">Thermal intensity color key ({unit})</p>
                 </div>
                 <button 
                   onClick={() => setIsOpen(false)}
-                  className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
+                  className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
                 >
-                  <X className="w-6 h-6 text-on-surface" />
+                  <X className="w-5 h-5 text-on-surface" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 gap-2">
                 {TEMP_SCALE.map((step, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-6 h-6 rounded-full ${step.bg} shadow-md border border-white/10`} />
-                      <span className="text-lg font-black text-on-surface capitalize">{step.color.replace('-', ' ')}</span>
+                  <div key={idx} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded-full ${step.bg} shadow-md border border-white/10`} />
+                      <span className="text-base font-black text-on-surface capitalize leading-none">{step.color.replace('-', ' ')}</span>
                     </div>
-                    <span className="text-xl font-black text-on-surface">{getLabel(step)}</span>
+                    <span className="text-lg font-black text-on-surface leading-none">{getLabel(step)}</span>
                   </div>
                 ))}
               </div>
               
-              <div className="mt-8 text-center">
+              <div className="mt-6 text-center">
                 <button 
                   onClick={() => setIsOpen(false)}
-                  className="px-8 py-4 bg-on-surface text-surface-container font-black uppercase tracking-widest rounded-2xl w-full"
+                  className="px-6 py-3 bg-on-surface text-surface-container font-black uppercase tracking-widest rounded-xl w-full text-sm"
                 >
-                  Close Scale
+                  Close
                 </button>
               </div>
             </motion.div>
