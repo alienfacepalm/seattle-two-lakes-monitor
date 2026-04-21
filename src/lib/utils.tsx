@@ -28,15 +28,17 @@ export const getBuoyBackground = () => {
 };
 
 export const TEMP_SCALE = [
-  { max: 45, label: "< 45°", color: "indigo", classes: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-600 dark:bg-indigo-400" },
-  { max: 55, label: "45-55°", color: "blue", classes: "text-blue-600 dark:text-blue-400", bg: "bg-blue-600 dark:bg-blue-400" },
-  { max: 65, label: "55-65°", color: "cyan", classes: "text-cyan-600 dark:text-cyan-400", bg: "bg-cyan-600 dark:bg-cyan-400" },
-  { max: 75, label: "65-75°", color: "orange", classes: "text-orange-500 dark:text-orange-400", bg: "bg-orange-500 dark:bg-orange-400" },
-  { max: Infinity, label: "> 75°", color: "deep-orange", classes: "text-orange-600 dark:text-orange-400", bg: "bg-orange-600 dark:bg-orange-400" },
+  { min: -Infinity, max: 45, color: "indigo", classes: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-600 dark:bg-indigo-400" },
+  { min: 45, max: 55, color: "blue", classes: "text-blue-600 dark:text-blue-400", bg: "bg-blue-600 dark:bg-blue-400" },
+  { min: 55, max: 65, color: "cyan", classes: "text-cyan-600 dark:text-cyan-400", bg: "bg-cyan-600 dark:bg-cyan-400" },
+  { min: 65, max: 75, color: "emerald", classes: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-600 dark:bg-emerald-400" },
+  { min: 75, max: 85, color: "orange", classes: "text-orange-500 dark:text-orange-400", bg: "bg-orange-500 dark:bg-orange-400" },
+  { min: 85, max: 100, color: "red", classes: "text-red-500 dark:text-red-400", bg: "bg-red-500 dark:bg-red-400" },
+  { min: 100, max: 125, color: "rose", classes: "text-rose-500 dark:text-rose-400", bg: "bg-rose-500 dark:bg-rose-400" },
 ];
 
 export const getTemperatureColor = (tempF: number) => {
   if (typeof tempF !== 'number' || isNaN(tempF)) return "text-on-surface";
   const step = TEMP_SCALE.find(s => tempF < s.max);
-  return step ? step.classes : "text-on-surface";
+  return step ? step.classes : "text-rose-600 dark:text-rose-400";
 };

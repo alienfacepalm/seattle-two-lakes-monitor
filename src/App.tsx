@@ -704,7 +704,7 @@ export default function App() {
                           )}
                         </div>
                         <div className="mt-6">
-                          <TempLegend />
+                          <TempLegend unit={unit} />
                         </div>
                       </div>
                       <div className="mt-8 pt-6 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
