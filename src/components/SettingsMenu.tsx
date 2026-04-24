@@ -147,15 +147,6 @@ export const SettingsMenu = ({
                 </p>
               </div>
             </div>
-            
-            <div className="absolute bottom-10 left-8 right-8">
-              <button 
-                onClick={onClose}
-                className="w-full py-4 bg-on-surface text-surface-container font-black uppercase tracking-widest rounded-2xl shadow-xl hover:scale-[1.02] transition-transform active:scale-95"
-              >
-                Close
-              </button>
-            </div>
           </motion.div>
         </>
       )}

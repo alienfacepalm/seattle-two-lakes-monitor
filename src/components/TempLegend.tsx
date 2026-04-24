@@ -28,7 +28,7 @@ export const TempLegend = ({ unit = "F" }: { unit?: "F" | "C" }) => {
           {TEMP_SCALE.map((step, idx) => (
             <Tooltip key={idx} content={
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black uppercase tracking-tighter text-white opacity-60">Temp Range</span>
+                <span className="text-[10px] font-black uppercase tracking-tighter text-white opacity-60">Temperature Range</span>
                 <span className="text-sm font-black text-white">{getLabel(step)}</span>
               </div>
             }>

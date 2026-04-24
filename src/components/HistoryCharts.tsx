@@ -47,13 +47,13 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
     boxShadow: '0 4px 12px rgba(0,0,0,0.1)' 
   };
 
-  const ranges: { label: string; value: TimeRange }[] = [
-    { label: "6H", value: "6h" },
-    { label: "12H", value: "12h" },
-    { label: "24H", value: "24h" },
-    { label: "1W", value: "1w" },
-    { label: "1M", value: "1m" },
-    { label: "1Y", value: "1y" },
+  const ranges: { label: string; fullLabel: string; value: TimeRange }[] = [
+    { label: "6H", fullLabel: "6 Hours", value: "6h" },
+    { label: "12H", fullLabel: "12 Hours", value: "12h" },
+    { label: "24H", fullLabel: "24 Hours", value: "24h" },
+    { label: "1W", fullLabel: "1 Week", value: "1w" },
+    { label: "1M", fullLabel: "1 Month", value: "1m" },
+    { label: "1Y", fullLabel: "1 Year", value: "1y" },
   ];
 
   const formatTick = (time: string) => {
@@ -82,12 +82,12 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
             <CalendarRange className="w-4 h-4" />
             <span className="text-[10px] font-bold uppercase tracking-widest">Time Range</span>
           </div>
-          <div className="flex p-1 bg-surface-container-highest/50 rounded-xl w-fit flex-wrap">
+          <div className="flex p-0.5 sm:p-1 bg-surface-container-highest/50 rounded-xl w-full sm:w-fit flex-nowrap justify-between sm:justify-start items-center">
             {ranges.map((r) => (
-              <UITooltip key={r.value} content={`Show last ${r.label}`}>
+              <UITooltip key={r.value} content={`Show Data for the Last ${r.fullLabel}`}>
                 <button
                   onClick={() => setRange(r.value)}
-                  className={`px-3 py-1 rounded-lg text-[10px] font-black transition-all ${
+                  className={`px-2 sm:px-3 py-1 rounded-lg text-[10px] font-black transition-all shrink-0 cursor-pointer ${
                     range === r.value 
                       ? "bg-surface shadow-sm text-primary" 
                       : "text-on-surface-variant opacity-50 hover:opacity-100"
@@ -132,8 +132,8 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
               />
               <YAxis domain={['auto', 'auto']} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}°`} opacity={0.5} />
               <Tooltip contentStyle={tooltipStyle} itemStyle={{ fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
-              <Area type="monotone" name="Water Temp" dataKey={unit === "F" ? "tempF" : "tempC"} stroke="#007aff" strokeWidth={3} fillOpacity={1} fill="url(#colorWaterHist)" connectNulls />
-              <Area type="monotone" name="Air Temp" dataKey={unit === "F" ? "airTempF" : "airTempC"} stroke="#fb923c" strokeWidth={2} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorAirHist)" connectNulls />
+              <Area type="monotone" name="Water Temperature" dataKey={unit === "F" ? "tempF" : "tempC"} stroke="#007aff" strokeWidth={3} fillOpacity={1} fill="url(#colorWaterHist)" connectNulls />
+              <Area type="monotone" name="Air Temperature" dataKey={unit === "F" ? "airTempF" : "airTempC"} stroke="#fb923c" strokeWidth={2} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorAirHist)" connectNulls />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -229,7 +229,7 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
                 />
                 <YAxis domain={[0, 100]} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}%`} opacity={0.5} />
                 <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#8b5cf6', fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
-                <Area type="monotone" name="Humidity" dataKey="humidity" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorHumHist)" connectNulls />
+                <Area type="monotone" name="Relative Humidity" dataKey="humidity" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorHumHist)" connectNulls />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -264,7 +264,7 @@ export const HistoryCharts: React.FC<HistoryChartsProps> = ({ history, unit, isD
                 />
                 <YAxis domain={['auto', 'auto']} stroke="var(--color-on-surface-variant)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}°`} opacity={0.5} />
                 <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#ec4899', fontWeight: 'bold' }} labelFormatter={(label) => new Date(label).toLocaleString()} />
-                <Area type="monotone" name="Dew Point" dataKey={unit === "F" ? "dewpointF" : "dewpoint"} stroke="#ec4899" strokeWidth={3} fillOpacity={1} fill="url(#colorDewHist)" connectNulls />
+                <Area type="monotone" name="Dew Point Temperature" dataKey={unit === "F" ? "dewpointF" : "dewpoint"} stroke="#ec4899" strokeWidth={3} fillOpacity={1} fill="url(#colorDewHist)" connectNulls />
               </AreaChart>
             </ResponsiveContainer>
           </div>

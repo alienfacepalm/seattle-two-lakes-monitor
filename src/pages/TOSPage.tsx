@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
-import { ShieldAlert, FileText, ArrowLeft, Globe, Scale, Fingerprint, Lock } from "lucide-react";
+import { ShieldAlert, FileText, ArrowLeft, Globe, Scale, Fingerprint, Lock, Mail, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export const TOSPage: React.FC = () => {
@@ -32,10 +32,10 @@ export const TOSPage: React.FC = () => {
       <section className="bg-surface-container-low rounded-[2.5rem] p-8 border border-black/5 dark:border-white/10 shadow-sm">
         <div className="flex items-center gap-3 mb-6">
           <Scale className="w-6 h-6 text-primary" />
-          <h2 className="text-lg font-black text-on-surface uppercase tracking-tight">Legal Preamble</h2>
+          <h2 className="text-lg font-black text-on-surface uppercase tracking-tight">Purpose & Acceptance</h2>
         </div>
         <p className="text-sm font-medium leading-relaxed text-on-surface-variant">
-          This Agreement governs your access to and usage of the 2lakes.app platform (the "Service"). By engaging with our systems, you acknowledge that you have read, understood, and voluntarily consented to be bound by these exhaustive terms. Access to the Service is granted as a privilege, not a right, and may be revoked at the sole discretion of the maintainers.
+          This Service is provided to help monitor local lake conditions. By accessing 2lakes.app, you agree to these terms. We reserve the right to modify the Service or these terms at any time to ensure the continued quality and sustainability of the project.
         </p>
       </section>
 
@@ -47,10 +47,10 @@ export const TOSPage: React.FC = () => {
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-6">
             <ShieldAlert className="w-6 h-6 text-primary" />
-            <h2 className="text-lg font-black text-on-surface uppercase tracking-tight">Experimental (Beta) Mandate</h2>
+            <h2 className="text-lg font-black text-on-surface uppercase tracking-tight">Beta Service Notice</h2>
           </div>
           <p className="text-sm font-semibold leading-relaxed text-on-surface-variant italic">
-            2lakes.app currently operates within a strictly defined "Beta" lifecycle phase. The Service is provided "AS IS" and "AS AVAILABLE," for informational and recreational utility only. All telemetry, including water sensors, meteorological forecasts, and historical trends, are synthesized outputs that may suffer from latency, inaccuracy, or systemic failure. Do not utilize the Service for safety-critical operations, marine navigation, or life-preserving decisions.
+            2lakes.app is an experimental platform in its Alpha/Beta phase. Service interruptions, data inaccuracies, or sensor outages may occur. This Service is intended for recreational and informational purposes only. It should not be relied upon for maritime navigation, safety-critical operations, or emergency decision-making.
           </p>
         </div>
       </section>
@@ -59,18 +59,92 @@ export const TOSPage: React.FC = () => {
       <section className="bg-surface-container-low rounded-[2.5rem] p-8 border border-black/5 dark:border-white/10 shadow-sm">
         <div className="flex items-center gap-3 mb-6">
           <Globe className="w-6 h-6 text-primary" />
-          <h2 className="text-lg font-black text-on-surface uppercase tracking-tight">Geospatial Data & Ethical Attribution</h2>
+          <h2 className="text-lg font-black text-on-surface uppercase tracking-tight">Geospatial Context</h2>
         </div>
         <div className="space-y-4">
           <p className="text-sm font-medium leading-relaxed text-on-surface-variant">
-            Visualization layers and geospatial intelligence used within this Service are sourced from a diverse array of open-source and free-tier providers (including but not limited to NOAA, Yandex, and OpenStreetMap).
+            To provide accurate context for buoy locations, we integrate data from various public and open-source mapping platforms, including NOAA, Yandex, and OpenStreetMap.
           </p>
           <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-6 border border-black/5 dark:border-white/5">
-            <h3 className="text-xs font-black text-primary uppercase tracking-widest mb-2">Technical Neutrality Statement</h3>
+            <h3 className="text-xs font-black text-primary uppercase tracking-widest mb-2">Service Attribution & Customization</h3>
             <p className="text-xs font-bold leading-relaxed text-on-surface-variant">
-              The integration of specific mapping engines is driven exclusively by technical interoperability, data availability, and cost-neutrality mandates. Their presence does not constitute an endorsement of the provider's corporate policies, nor does it represent any political alignment, geopolitical stance, or "Russian coup"—it is simply the leverage of high-quality, free infrastructure where local alternatives were unavailable or prohibitive.
+              These mapping services are selected based on their technical reliability and availability. For enhanced precision or custom styling, the platform also supports professional integration with Google Maps and Mapbox via private configuration.
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* Suggestion Form */}
+      <section className="bg-surface-container-low rounded-[2.5rem] p-8 border border-black/5 dark:border-white/10 shadow-sm relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-8 opacity-[0.03] transition-opacity group-hover:opacity-[0.07]">
+          <Globe className="w-48 h-48" />
+        </div>
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <MessageSquare className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-on-surface uppercase tracking-tight">Suggestions</h2>
+              <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Help improve our mapping sources</p>
+            </div>
+          </div>
+          
+          <p className="text-sm font-medium leading-relaxed text-on-surface-variant mb-8">
+            Know of a better free mapping service or have general feedback? We're always looking for high-quality, open-source alternatives.
+          </p>
+
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const name = formData.get('name');
+              const service = formData.get('service');
+              const message = formData.get('message');
+              const body = `Name: ${name}\nSuggested Service: ${service}\n\nMessage:\n${message}`;
+              window.location.href = `mailto:brandon.pliska@gmail.com?subject=2lakes.app Suggestion&body=${encodeURIComponent(body)}`;
+            }}
+            className="space-y-4"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant ml-2">Name</label>
+                <input 
+                  name="name"
+                  type="text" 
+                  placeholder="Your name" 
+                  required
+                  className="w-full bg-surface-container-highest/20 border border-black/5 dark:border-white/10 rounded-2xl px-5 py-4 text-sm font-semibold placeholder:opacity-30 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant ml-2">Service Idea</label>
+                <input 
+                  name="service"
+                  type="text" 
+                  placeholder="e.g. Mapbox, Leaflet, etc." 
+                  className="w-full bg-surface-container-highest/20 border border-black/5 dark:border-white/10 rounded-2xl px-5 py-4 text-sm font-semibold placeholder:opacity-30 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant ml-2">Message & Details</label>
+              <textarea 
+                name="message"
+                placeholder="Tell us more about the service or your suggestion..." 
+                required
+                rows={4}
+                className="w-full bg-surface-container-highest/20 border border-black/5 dark:border-white/10 rounded-2xl px-5 py-4 text-sm font-semibold placeholder:opacity-30 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+              />
+            </div>
+            <button 
+              type="submit"
+              className="w-full py-4 bg-primary text-white font-black uppercase tracking-widest rounded-2xl shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+            >
+              Send Suggestion
+            </button>
+          </form>
         </div>
       </section>
 
@@ -79,20 +153,20 @@ export const TOSPage: React.FC = () => {
         <section className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/10">
           <div className="flex items-center gap-3 mb-4">
             <Fingerprint className="w-5 h-5 text-primary" />
-            <h2 className="text-sm font-black text-on-surface uppercase tracking-tight">Systems Integrity</h2>
+            <h2 className="text-sm font-black text-on-surface uppercase tracking-tight">User Conduct</h2>
           </div>
           <p className="text-xs font-medium leading-relaxed text-on-surface-variant">
-            Users may not attempt to reverse engineer, scrape, or otherwise disrupt the Service's data pipelines. We maintain strict monitoring to protect sensor latency and backend stability.
+            Users are expected to use the Service as intended. Attempting to disrupt sensor transmissions, scrape data, or compromise the integrity of our systems is strictly prohibited.
           </p>
         </section>
 
         <section className="bg-surface-container-low rounded-[2rem] p-6 border border-black/5 dark:border-white/10">
           <div className="flex items-center gap-3 mb-4">
             <Lock className="w-5 h-5 text-primary" />
-            <h2 className="text-sm font-black text-on-surface uppercase tracking-tight">Privacy Limitation</h2>
+            <h2 className="text-sm font-black text-on-surface uppercase tracking-tight">Privacy Commitment</h2>
           </div>
           <p className="text-xs font-medium leading-relaxed text-on-surface-variant">
-            While we prioritize anonymity, we collect non-identifiable telemetry to improve buoy performance. By using the service, you consent to this standard data collection.
+            We value your privacy. We collect minimal, non-identifiable telemetry to monitor buoy connectivity and Service health. We do not track individual identity or sell user data.
           </p>
         </section>
       </div>
@@ -101,10 +175,10 @@ export const TOSPage: React.FC = () => {
       <section className="bg-surface-container-low rounded-[2.5rem] p-8 border border-black/5 dark:border-white/10 shadow-sm">
         <div className="flex items-center gap-3 mb-6">
           <FileText className="w-6 h-6 text-primary" />
-          <h2 className="text-lg font-black text-on-surface uppercase tracking-tight">Standard Indemnification</h2>
+          <h2 className="text-lg font-black text-on-surface uppercase tracking-tight">Disclaimer of Liability</h2>
         </div>
         <p className="text-sm font-medium leading-relaxed text-on-surface-variant">
-          In no event shall the maintainers, developers, or associated contributors of 2lakes.app be held liable for any direct, indirect, incidental, special, or consequential damages (including, but not limited to, loss of life, injury, or property damage) arising from the use or inability to use the Service. Use of the Service is conducted at the user's sole risk.
+          In no event shall 2lakes.app or its developers be held liable for any damages, losses, or injuries resulting from the use of this Service. Users assume all responsibility for verifying conditions locally. The Service is used at the user's sole risk and discretion.
         </p>
       </section>
 

@@ -72,6 +72,7 @@ import { HistoryCharts } from "./components/HistoryCharts";
 import { Tooltip } from "./components/Tooltip";
 import { TempLegend } from "./components/TempLegend";
 import { SettingsMenu } from "./components/SettingsMenu";
+import { StaticMap } from "./components/StaticMap";
 import { TOSPage } from "./pages/TOSPage";
 
 enum OperationType {
@@ -705,14 +706,18 @@ export default function App() {
                         </div>
                         <p className="text-2xl font-black text-on-surface mt-2 text-center drop-shadow-sm">
                           {data?.status === "ACTIVE" 
-                            ? (data?.tempC === null || data?.tempC === undefined ? "Water Temp Unavailable" : `${data?.condition} Conditions`) 
+                            ? (data?.tempC === null || data?.tempC === undefined ? "Water Temperature Unavailable" : `${data?.condition} Conditions`) 
                             : (lastWaterTempPoint ? "Last Recorded" : "Sensor Offline")}
                         </p>
                         <div className="flex gap-4 mt-2 text-on-surface-variant font-black text-base drop-shadow-sm">
                           {(data?.tempC !== null || lastWaterTempPoint) && (
                             <>
-                              <span>H: <span className={getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) + 2)}>{Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) + 2)}°</span></span>
-                              <span>L: <span className={getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) - 3)}>{Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) - 3)}°</span></span>
+                            <span>High: <span className={getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) + 2)}>
+                              {Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) + 2)}°
+                            </span></span>
+                            <span>Low: <span className={getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) - 3)}>
+                              {Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) - 3)}°
+                            </span></span>
                             </>
                           )}
                         </div>
@@ -1172,11 +1177,11 @@ export default function App() {
                                   <span className="text-[8px] font-bold opacity-50 font-mono">{buoy.lat?.toFixed(4)}, {buoy.lon?.toFixed(4)}</span>
                                 </div>
                                 <div className="w-full aspect-[2/1] rounded-lg overflow-hidden border border-black/10 dark:border-white/10 shadow-inner bg-black/20">
-                                  <img
-                                    src={`https://static-maps.yandex.ru/1.x/?ll=${buoy.lon},${buoy.lat}&z=11&l=map&size=450,225&pt=${buoy.lon},${buoy.lat},pm2rdm&lang=en_US`}
-                                    alt={`Map showing ${buoy.name}`}
-                                    className="w-full h-full object-cover opacity-80"
-                                    referrerPolicy="no-referrer"
+                                  <StaticMap 
+                                    lat={buoy.lat || 0} 
+                                    lon={buoy.lon || 0} 
+                                    name={buoy.name} 
+                                    className="opacity-80"
                                   />
                                 </div>
                               </div>
@@ -1220,11 +1225,12 @@ export default function App() {
                                     </div>
                                   </div>
                                   <div className="w-full aspect-[2/1] rounded-xl overflow-hidden border border-black/10 dark:border-white/10 shadow-inner group relative">
-                                    <img
-                                      src={`https://static-maps.yandex.ru/1.x/?ll=${buoy.lon},${buoy.lat}&z=${mapZoom[buoy.id] || 11}&l=map&size=450,225&pt=${buoy.lon},${buoy.lat},pm2rdm&lang=en_US`}
-                                      alt={`Map showing ${buoy.name}`}
-                                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                      referrerPolicy="no-referrer"
+                                    <StaticMap 
+                                      lat={buoy.lat || 0} 
+                                      lon={buoy.lon || 0} 
+                                      zoom={mapZoom[buoy.id] || 11}
+                                      name={buoy.name}
+                                      className="transition-transform duration-700 group-hover:scale-110"
                                     />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                                     
@@ -1388,7 +1394,7 @@ export default function App() {
               </div>
               <div className="px-6 py-3 bg-surface/30 backdrop-blur-sm border-t border-black/5 dark:border-white/5 text-center">
                  <p className="text-[9px] text-on-surface-variant opacity-40 uppercase font-bold tracking-[0.2em]">
-                   Data provided by NOAA / National Weather Service (plus FREE geo maps—no Russian coup here! Just free stuff we couldn't find for free elsewhere.)
+                   Observational data provided by NOAA and the National Weather Service. Mapping context provided via public geospatial services.
                  </p>
               </div>
             </motion.div>

@@ -50,7 +50,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 4 }}
               transition={{ type: "spring", damping: 20, stiffness: 300 }}
-              className={`z-[200] ${className || "max-w-[260px]"} rounded-xl bg-surface-container-highest/90 backdrop-blur-xl px-3 py-2 text-xs font-bold text-on-surface shadow-2xl border border-black/5 dark:border-white/10 select-none animate-in fade-in zoom-in-95`}
+              className={`z-[200] ${className || "max-w-[320px]"} rounded-xl bg-surface-container-highest/90 backdrop-blur-xl px-4 py-2.5 text-xs font-bold text-on-surface shadow-2xl border border-black/5 dark:border-white/10 select-none animate-in fade-in zoom-in-95 leading-relaxed break-words`}
             >
               {content}
               <RadarTooltip.Arrow className="fill-surface-container-highest/90" />
