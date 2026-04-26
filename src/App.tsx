@@ -1200,102 +1200,118 @@ export default function App() {
                       const isExpanded = expandedBuoyId === buoy.id;
                       return (
                         <div key={buoy.id} className="flex flex-col relative transition-all lg:hover:z-10 lg:hover:border-t-transparent lg:hover:[&+*]:border-t-transparent group/buoy">
-                          <motion.div 
-                            whileTap={{ scale: 0.98 }} 
-                            onClick={() => setExpandedBuoyId(isExpanded ? null : buoy.id)} 
-                            className={`relative py-5 px-8 flex items-center justify-between cursor-pointer transition-all overflow-hidden ${selectedBuoy === buoy.name ? "bg-primary/10" : "lg:group-hover/buoy:bg-black/10 lg:dark:group-hover/buoy:bg-white/10"}`}
-                          >
-                            <div className="relative z-10 flex items-center gap-4">
-                              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border transition-all ${
-                                buoy.active 
-                                  ? (buoy.tempC !== null && buoy.tempC !== undefined && !isNaN(buoy.tempC) 
-                                    ? "bg-[#ccff00]/10 text-[#718800] dark:text-[#ccff00] border-[#718800]/30 dark:border-[#ccff00]/20 shadow-[0_0_10px_rgba(204,255,0,0.1)]" 
-                                    : "bg-[#ffbf00]/10 text-[#ffbf00] border-[#ffbf00]/30 shadow-[0_0_10px_rgba(255,191,0,0.1)]") 
-                                  : "bg-on-surface-variant/10 text-on-surface-variant border-transparent"
-                              }`}><MapPin className="w-5 h-5" /></div>
-                              <div>
-                                <h3 className="text-base font-black text-on-surface uppercase tracking-tight">{buoy.name}</h3>
-                                <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.1em]">{buoy.lat?.toFixed(3) || "0.000"}, {buoy.lon?.toFixed(3) || "0.000"}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-5">
-                              <div className="text-right">
-                                <p className={`text-2xl font-black drop-shadow-sm ${getTemperatureColor(buoy.tempF || 0)}`}>
-                                  {buoy.tempC !== null && buoy.tempC !== undefined && !isNaN(buoy.tempC) 
-                                    ? `${unit === "F" ? Math.round(buoy.tempF || 0) : Math.round(buoy.tempC)}°` 
-                                    : "--°"}
-                                </p>
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${
-                                  buoy.active 
-                                    ? (buoy.tempC !== null && buoy.tempC !== undefined && !isNaN(buoy.tempC) ? "text-[#718800] dark:text-[#ccff00]" : "text-[#ffbf00]") 
-                                    : "text-on-surface-variant"
-                                }`}>
-                                  {buoy.active ? (buoy.tempC !== null && buoy.tempC !== undefined && !isNaN(buoy.tempC) ? "Active" : "Partial") : "Offline"}
-                                </span>
-                              </div>
-                              <ChevronRight className={`w-5 h-5 text-primary/40 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                            </div>
-                          </motion.div>
-
-                          <AnimatePresence>
-                            {isExpanded && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden bg-surface-container-highest/30 px-8 py-6 transition-all lg:group-hover/buoy:bg-black/10 lg:dark:group-hover/buoy:bg-white/10"
+                            <Tooltip content={`Click to ${isExpanded ? 'close' : 'toggle'} location details`} side="top">
+                              <motion.div 
+                                whileTap={{ scale: 0.98 }} 
+                                onClick={() => setExpandedBuoyId(isExpanded ? null : buoy.id)} 
+                                className={`relative py-5 px-8 flex items-center justify-between cursor-pointer transition-all overflow-hidden ${selectedBuoy === buoy.name ? "bg-primary/10" : "lg:hover:bg-primary/5 dark:lg:hover:bg-white/5"} group/buoy`}
                               >
-                                <div className="space-y-4">
-                                  <div className="flex items-center justify-between">
-                                    <div className="space-y-1">
-                                      <h4 className="text-[10px] font-black uppercase tracking-tight text-primary leading-none italic">Buoy <span className="text-on-surface not-italic">Location</span></h4>
-                                      <p className="text-[11px] font-bold text-on-surface-variant font-mono">{buoy.lat?.toFixed(4)}, {buoy.lon?.toFixed(4)}</p>
-                                    </div>
-                                  </div>
-                                  <div className="w-full aspect-[2/1] rounded-xl overflow-hidden border border-black/10 dark:border-white/10 shadow-inner group relative">
-                                    <StaticMap 
-                                      lat={buoy.lat || 0} 
-                                      lon={buoy.lon || 0} 
-                                      zoom={mapZoom[buoy.id] || 11}
-                                      name={buoy.name}
-                                      className="transition-transform duration-700 group-hover:scale-110"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
-                                    
-                                    {/* Zoom Controls */}
-                                    <div className="absolute bottom-3 right-3 flex flex-col gap-2">
-                                      <motion.button
-                                        whileTap={{ scale: 0.9 }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const currentZ = mapZoom[buoy.id] || 11;
-                                          if (currentZ < 17) {
-                                            setMapZoom(prev => ({ ...prev, [buoy.id]: currentZ + 1 }));
-                                          }
-                                        }}
-                                        className="w-8 h-8 bg-surface/90 backdrop-blur-md rounded-lg flex items-center justify-center text-on-surface shadow-lg border border-black/5 dark:border-white/10"
-                                      >
-                                        <Plus className="w-4 h-4" />
-                                      </motion.button>
-                                      <motion.button
-                                        whileTap={{ scale: 0.9 }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const currentZ = mapZoom[buoy.id] || 11;
-                                          if (currentZ > 1) {
-                                            setMapZoom(prev => ({ ...prev, [buoy.id]: currentZ - 1 }));
-                                          }
-                                        }}
-                                        className="w-8 h-8 bg-surface/90 backdrop-blur-md rounded-lg flex items-center justify-center text-on-surface shadow-lg border border-black/5 dark:border-white/10"
-                                      >
-                                        <Minus className="w-4 h-4" />
-                                      </motion.button>
-                                    </div>
+                                <div className="relative z-10 flex items-center gap-4">
+                                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border transition-all ${
+                                    buoy.active 
+                                      ? (buoy.tempC !== null && buoy.tempC !== undefined && !isNaN(buoy.tempC) 
+                                        ? "bg-[#ccff00]/10 text-[#718800] dark:text-[#ccff00] border-[#718800]/30 dark:border-[#ccff00]/20 shadow-[0_0_10px_rgba(204,255,0,0.1)]" 
+                                        : "bg-[#ffbf00]/10 text-[#ffbf00] border-[#ffbf00]/30 shadow-[0_0_10px_rgba(255,191,0,0.1)]") 
+                                      : "bg-on-surface-variant/10 text-on-surface-variant border-transparent"
+                                  }`}><MapPin className="w-5 h-5" /></div>
+                                  <div>
+                                    <h3 className="text-base font-black text-on-surface uppercase tracking-tight">{buoy.name}</h3>
+                                    <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.1em]">{buoy.lat?.toFixed(3) || "0.000"}, {buoy.lon?.toFixed(3) || "0.000"}</p>
                                   </div>
                                 </div>
+                                <div className="flex items-center gap-5">
+                                  <div className="text-right">
+                                    <p className={`text-2xl font-black drop-shadow-sm ${getTemperatureColor(buoy.tempF || 0)}`}>
+                                      {buoy.tempC !== null && buoy.tempC !== undefined && !isNaN(buoy.tempC) 
+                                        ? `${unit === "F" ? Math.round(buoy.tempF || 0) : Math.round(buoy.tempC)}°` 
+                                        : "--°"}
+                                    </p>
+                                    <span className={`text-[10px] font-black uppercase tracking-widest ${
+                                      buoy.active 
+                                        ? (buoy.tempC !== null && buoy.tempC !== undefined && !isNaN(buoy.tempC) ? "text-[#718800] dark:text-[#ccff00]" : "text-[#ffbf00]") 
+                                        : "text-on-surface-variant"
+                                    }`}>
+                                      {buoy.active ? (buoy.tempC !== null && buoy.tempC !== undefined && !isNaN(buoy.tempC) ? "Active" : "Partial") : "Offline"}
+                                    </span>
+                                  </div>
+                                  <ChevronRight className={`w-5 h-5 text-primary/40 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                </div>
                               </motion.div>
-                            )}
-                          </AnimatePresence>
+                            </Tooltip>
+
+                            <AnimatePresence>
+                              {isExpanded && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: "auto", opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  className="overflow-hidden bg-surface-container-highest/10 px-8 py-6 transition-all"
+                                >
+                                  <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                      <div className="space-y-1">
+                                        <h4 className="text-[10px] font-black uppercase tracking-tight text-primary leading-none italic">Buoy <span className="text-on-surface not-italic">Location</span></h4>
+                                        <p className="text-[11px] font-bold text-on-surface-variant font-mono">{buoy.lat?.toFixed(4)}, {buoy.lon?.toFixed(4)}</p>
+                                      </div>
+                                      <Tooltip content="Go to Dashboard with this Buoy selected">
+                                        <Link 
+                                          to="/" 
+                                          onClick={() => setSelectedBuoy(buoy.name)}
+                                          className="p-3 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl transition-all cursor-pointer flex items-center gap-2"
+                                        >
+                                          <LayoutDashboard className="w-4 h-4" />
+                                          <span className="text-[10px] font-black uppercase tracking-widest">Dashboard</span>
+                                        </Link>
+                                      </Tooltip>
+                                    </div>
+                                    <div className="w-full aspect-[2/1] rounded-xl overflow-hidden border border-black/10 dark:border-white/10 shadow-inner group relative">
+                                      <StaticMap 
+                                        lat={buoy.lat || 0} 
+                                        lon={buoy.lon || 0} 
+                                        zoom={mapZoom[buoy.id] || 11}
+                                        name={buoy.name}
+                                        className="transition-transform duration-700 group-hover:scale-110"
+                                      />
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                                      
+                                      {/* Zoom Controls */}
+                                      <div className="absolute bottom-3 right-3 flex flex-col gap-2">
+                                        <Tooltip content="Zoom In">
+                                          <motion.button
+                                            whileTap={{ scale: 0.9 }}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              const currentZ = mapZoom[buoy.id] || 11;
+                                              if (currentZ < 17) {
+                                                setMapZoom(prev => ({ ...prev, [buoy.id]: currentZ + 1 }));
+                                              }
+                                            }}
+                                            className="w-8 h-8 bg-surface/90 backdrop-blur-md rounded-lg flex items-center justify-center text-on-surface shadow-lg border border-black/5 dark:border-white/10 cursor-pointer lg:hover:bg-primary lg:hover:text-white transition-colors"
+                                          >
+                                            <Plus className="w-4 h-4" />
+                                          </motion.button>
+                                        </Tooltip>
+                                        <Tooltip content="Zoom Out">
+                                          <motion.button
+                                            whileTap={{ scale: 0.9 }}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              const currentZ = mapZoom[buoy.id] || 11;
+                                              if (currentZ > 1) {
+                                                setMapZoom(prev => ({ ...prev, [buoy.id]: currentZ - 1 }));
+                                              }
+                                            }}
+                                            className="w-8 h-8 bg-surface/90 backdrop-blur-md rounded-lg flex items-center justify-center text-on-surface shadow-lg border border-black/5 dark:border-white/10 cursor-pointer lg:hover:bg-primary lg:hover:text-white transition-colors"
+                                          >
+                                            <Minus className="w-4 h-4" />
+                                          </motion.button>
+                                        </Tooltip>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
                         </div>
                       );
                     })}
