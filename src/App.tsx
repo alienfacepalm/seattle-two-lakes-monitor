@@ -606,7 +606,11 @@ export default function App() {
                         className="w-full bg-surface-container-low border border-black/5 dark:border-white/5 rounded-2xl p-4 flex items-center justify-between group lg:hover:bg-surface-container transition-colors cursor-pointer"
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full animate-pulse border border-black/10 dark:border-white/10 ${data?.status === "ACTIVE" ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`} />
+                          <div className={`w-2 h-2 rounded-full animate-pulse border border-black/10 dark:border-white/10 ${
+                            data?.status === "ACTIVE" 
+                              ? (data?.tempC !== null && data?.tempC !== undefined && !isNaN(data.tempC) ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-[#ffbf00] shadow-[0_0_8px_#ffbf00]") 
+                              : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+                          }`} />
                           <span className="text-sm font-bold text-on-surface">{selectedBuoy.endsWith("Buoy") ? selectedBuoy : `${selectedBuoy} Buoy`}</span>
                         </div>
                         <ChevronDown className={`w-5 h-5 text-on-surface-variant transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
@@ -628,7 +632,11 @@ export default function App() {
                               className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer ${selectedBuoy === buoy.name ? 'text-primary' : 'text-on-surface'}`}
                             >
                               <div className="flex items-center gap-3">
-                                <div className={`w-2 h-2 rounded-full ${buoy.active ? "bg-[#ccff00] shadow-[0_0_5px_#ccff00]" : "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]"}`} />
+                                <div className={`w-2 h-2 rounded-full ${
+                                  buoy.active 
+                                    ? (buoy.tempC !== null && buoy.tempC !== undefined && !isNaN(buoy.tempC) ? "bg-[#ccff00] shadow-[0_0_5px_#ccff00]" : "bg-[#ffbf00] shadow-[0_0_5px_#ffbf00]")
+                                    : "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]"
+                                }`} />
                                 {buoy.name}
                               </div>
                               {selectedBuoy === buoy.name && <Check className="w-4 h-4" />}
@@ -698,9 +706,9 @@ export default function App() {
                           <div className="flex flex-col items-center">
                             <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant mb-1">Water Temperature</span>
                             <span className={`text-8xl font-black tracking-tighter drop-shadow-sm ${getTemperatureColor(data?.tempF ?? lastWaterTempPoint?.tempF ?? 0)}`}>
-                              {data?.tempC !== null && data?.tempC !== undefined
-                                ? `${Math.round(unit === "F" ? (data.tempF ?? 0) : (data.tempC ?? 0))}°`
-                                : (data?.status === "ACTIVE" ? "--" : (lastWaterTempPoint ? `${Math.round(unit === "F" ? (lastWaterTempPoint.tempF ?? 0) : (lastWaterTempPoint.tempC ?? 0))}°` : "--"))}
+                              {data?.tempC !== null && data?.tempC !== undefined && !isNaN(data.tempC)
+                                ? `${Math.round(unit === "F" ? (data.tempF || 0) : (data.tempC || 0))}°`
+                                : (data?.status === "ACTIVE" ? "--" : (lastWaterTempPoint ? `${Math.round(unit === "F" ? (lastWaterTempPoint.tempF || 0) : (lastWaterTempPoint.tempC || 0))}°` : "--"))}
                             </span>
                           </div>
                         </div>
@@ -710,13 +718,13 @@ export default function App() {
                             : (lastWaterTempPoint ? "Last Recorded" : "Sensor Offline")}
                         </p>
                         <div className="flex gap-4 mt-2 text-on-surface-variant font-black text-base drop-shadow-sm">
-                          {(data?.tempC !== null || lastWaterTempPoint) && (
+                          {((data?.tempC !== null && data?.tempC !== undefined && !isNaN(data?.tempC)) || lastWaterTempPoint) && (
                             <>
                             <span>High: <span className={getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) + 2)}>
-                              {Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) + 2)}°
+                              {Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) || 0) + 2)}°
                             </span></span>
                             <span>Low: <span className={getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) - 3)}>
-                              {Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) ?? 0) - 3)}°
+                              {Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) || 0) - 3)}°
                             </span></span>
                             </>
                           )}
@@ -727,12 +735,22 @@ export default function App() {
                       </div>
                       <div className="mt-8 pt-6 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <span className={`w-2 h-2 rounded-full animate-pulse border border-black/10 dark:border-white/10 ${data?.status === "ACTIVE" ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`}></span>
+                          <span className={`w-2 h-2 rounded-full animate-pulse border border-black/10 dark:border-white/10 ${
+                            data?.status === "ACTIVE" 
+                              ? (data?.tempC !== null && data?.tempC !== undefined && !isNaN(data.tempC) ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-[#ffbf00] shadow-[0_0_8px_#ffbf00]") 
+                              : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+                          }`}></span>
                           <div className="flex flex-col leading-tight">
                             <span className="text-[11px] font-black uppercase tracking-widest text-on-surface">
-                              {data?.status === "ACTIVE" ? "Live Sensor" : "Offline"}
+                              {data?.status === "ACTIVE" 
+                                ? (data?.tempC !== null && data?.tempC !== undefined && !isNaN(data.tempC) ? "Live Sensor" : "Live Sensor (Water Temp Missing)") 
+                                : "Offline"}
                             </span>
-                            {history.length > 0 && (
+                            {data?.status === "ACTIVE" && (data?.tempC === null || data?.tempC === undefined || isNaN(data.tempC)) ? (
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-[#ffbf00]">
+                                Water temp temporarily missing, but other data active
+                              </span>
+                            ) : history.length > 0 && (
                               <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
                                 Since {new Date(history[0].time).toLocaleDateString()}
                               </span>
@@ -854,7 +872,9 @@ export default function App() {
                                   </p>
                                 </div>
                                 <div className="flex items-center gap-3 w-12 sm:w-16 justify-end shrink-0">
-                                  <span className={`text-lg sm:text-xl font-black ${getTemperatureColor(day.temp)}`}>{unit === "F" ? day.temp : Math.round((day.temp - 32) * 5/9)}°</span>
+                                  <span className={`text-lg sm:text-xl font-black ${getTemperatureColor(day.temp)}`}>
+                                    {!isNaN(day.temp) ? (unit === "F" ? day.temp : Math.round((day.temp - 32) * 5/9)) : "--"}°
+                                  </span>
                                   <ChevronRight className={`w-5 h-5 text-primary/60 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                                 </div>
                               </motion.div>
@@ -869,6 +889,12 @@ export default function App() {
                                   >
                                     <div className="pt-2 text-sm leading-relaxed text-on-surface font-semibold border-t border-primary/20">
                                       {day.detailedForecast || day.shortForecast}
+                                      {day.precipitationProbability > 0 && (
+                                        <div className="mt-2 text-xs font-black text-primary uppercase tracking-wider flex items-center gap-1.5">
+                                          <Droplets className="w-3.5 h-3.5" />
+                                          Chance of precipitation: {day.precipitationProbability}%
+                                        </div>
+                                      )}
                                     </div>
                                   </motion.div>
                                 )}
@@ -892,19 +918,19 @@ export default function App() {
                         <div className={`flex items-center gap-3 text-3xl font-black tracking-tight ${
                           data?.tempF === null && data?.status === "ACTIVE" 
                             ? "text-on-surface-variant opacity-50" 
-                            : (Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 60 ? "text-red-500" : Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 70 ? "text-orange-500" : "text-green-500")
+                            : (Math.round((data?.tempF || lastWaterTempPoint?.tempF) || 0) < 60 ? "text-red-500" : Math.round((data?.tempF || lastWaterTempPoint?.tempF) || 0) < 70 ? "text-orange-500" : "text-green-500")
                         }`}>
                           {data?.tempF === null && data?.status === "ACTIVE" ? (
                             <>
                               <WifiOff className="w-6 h-6" />
                               <span>Unknown</span>
                             </>
-                          ) : Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 60 ? (
+                          ) : Math.round((data?.tempF || lastWaterTempPoint?.tempF) || 0) < 60 ? (
                             <>
                               <AlertTriangle className="w-6 h-6" />
                               <span>Dangerous</span>
                             </>
-                          ) : Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 70 ? (
+                          ) : Math.round((data?.tempF || lastWaterTempPoint?.tempF) || 0) < 70 ? (
                             <>
                               <AlertCircle className="w-6 h-6" />
                               <span>Caution</span>
@@ -919,9 +945,9 @@ export default function App() {
                         <p className="text-xs text-on-surface-variant opacity-70 leading-relaxed font-medium">
                           {data?.tempF === null && data?.status === "ACTIVE"
                             ? "Water temperature sensor is currently offline. Suitability cannot be determined."
-                            : Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 60 
+                            : Math.round((data?.tempF || lastWaterTempPoint?.tempF) || 0) < 60 
                               ? "Extreme cold shock risk. Wetsuit mandatory." 
-                              : Math.round((data?.tempF ?? lastWaterTempPoint?.tempF) ?? 0) < 70 
+                              : Math.round((data?.tempF || lastWaterTempPoint?.tempF) || 0) < 70 
                                 ? "Cold water shock risk. Limit exposure." 
                                 : "Comfortable swimming conditions."}
                         </p>
@@ -954,9 +980,9 @@ export default function App() {
                       </div>
                       <div className="flex flex-col items-center">
                         <p className={`text-5xl font-black drop-shadow-sm ${getTemperatureColor(data?.airTempF ?? lastAirTempPoint?.airTempF ?? 0)}`}>
-                          {data?.airTempC !== null && data?.airTempC !== undefined
+                          {data?.airTempC !== null && data?.airTempC !== undefined && !isNaN(data.airTempF || 0)
                             ? Math.round(unit === "F" ? (data.airTempF ?? 0) : (data.airTempC ?? 0))
-                            : (lastAirTempPoint ? Math.round(unit === "F" ? (lastAirTempPoint.airTempF ?? 0) : (lastAirTempPoint.airTempC ?? 0)) : "--")}°
+                            : (lastAirTempPoint ? Math.round(unit === "F" ? (lastAirTempPoint.airTempF || 0) : (lastAirTempPoint.airTempC || 0)) : "--")}°
                         </p>
                         <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant mt-2">
                           {data?.airTempC !== null && data?.airTempC !== undefined ? "Surface Level" : "Last Hour"}
@@ -971,9 +997,9 @@ export default function App() {
                       </div>
                       <div className="flex flex-col items-center">
                         <p className={`text-5xl font-black drop-shadow-sm ${getTemperatureColor((data?.dewpoint !== null && data?.dewpoint !== undefined ? data.dewpoint : (avgDewpoint ?? 0)) * 9/5 + 32)}`}>
-                          {data?.dewpoint !== null && data?.dewpoint !== undefined
+                          {data?.dewpoint !== null && data?.dewpoint !== undefined && !isNaN(data.dewpoint)
                             ? Math.round(unit === "F" ? (data.dewpoint * 9/5 + 32) : data.dewpoint)
-                            : (avgDewpoint !== null ? Math.round(unit === "F" ? (avgDewpoint * 9/5 + 32) : avgDewpoint) : "--")}°
+                            : (avgDewpoint !== null && !isNaN(avgDewpoint) ? Math.round(unit === "F" ? (avgDewpoint * 9/5 + 32) : avgDewpoint) : "--")}°
                         </p>
                         <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant mt-2">
                           {data?.dewpoint !== null ? "Atmospheric" : "24h Average"}
@@ -1044,9 +1070,9 @@ export default function App() {
                         </div>
                         <div className="flex flex-col items-center text-center">
                           <p className="text-5xl font-black text-on-surface drop-shadow-sm">
-                            {data?.humidity !== null && data?.humidity !== undefined
+                            {data?.humidity !== null && data?.humidity !== undefined && !isNaN(data.humidity)
                               ? `${Math.round(data.humidity)}%` 
-                              : (avgHumidity !== null ? `${Math.round(avgHumidity)}%` : "--")}
+                              : (avgHumidity !== null && !isNaN(avgHumidity) ? `${Math.round(avgHumidity)}%` : "--")}
                           </p>
                           <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-on-surface-variant mt-2 max-w-[80px] sm:max-w-none">
                             {data?.humidity !== null && data?.humidity !== undefined ? "Relative Humidity" : "24h Average"}
@@ -1067,7 +1093,11 @@ export default function App() {
                     className="w-full bg-surface-container-low border border-black/5 dark:border-white/5 rounded-2xl p-4 flex items-center justify-between group hover:bg-surface-container transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full animate-pulse border border-black/10 dark:border-white/10 ${data?.status === "ACTIVE" ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`} />
+                      <div className={`w-2 h-2 rounded-full animate-pulse border border-black/10 dark:border-white/10 ${
+                        data?.status === "ACTIVE" 
+                          ? (data?.tempC !== null && data?.tempC !== undefined && !isNaN(data.tempC) ? "bg-[#ccff00] shadow-[0_0_8px_#ccff00]" : "bg-[#ffbf00] shadow-[0_0_8px_#ffbf00]") 
+                          : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+                      }`} />
                       <span className="text-sm font-bold text-on-surface">{selectedBuoy.endsWith("Buoy") ? selectedBuoy : `${selectedBuoy} Buoy`}</span>
                     </div>
                     <ChevronDown className={`w-5 h-5 text-on-surface-variant transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
@@ -1081,14 +1111,18 @@ export default function App() {
                         exit={{ opacity: 0, y: 10, scale: 0.95 }} 
                         className="absolute top-full left-0 right-0 mt-2 bg-surface-container-highest backdrop-blur-xl border border-black/5 dark:border-white/10 rounded-2xl shadow-2xl z-[100] overflow-hidden"
                       >
-                        {allBuoys.map((buoy) => (
+                        {sortedBuoys.map((buoy) => (
                           <button 
                             key={buoy.id} 
                             onClick={() => { setSelectedBuoy(buoy.name); setIsDropdownOpen(false); }} 
                             className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${selectedBuoy === buoy.name ? 'text-primary' : 'text-on-surface'}`}
                           >
                             <div className="flex items-center gap-3">
-                              <div className={`w-2 h-2 rounded-full ${buoy.active ? "bg-[#ccff00] shadow-[0_0_5px_#ccff00]" : "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]"}`} />
+                              <div className={`w-2 h-2 rounded-full ${
+                                buoy.active 
+                                  ? (buoy.tempC !== null && buoy.tempC !== undefined && !isNaN(buoy.tempC) ? "bg-[#ccff00] shadow-[0_0_5px_#ccff00]" : "bg-[#ffbf00] shadow-[0_0_5px_#ffbf00]")
+                                  : "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]"
+                              }`} />
                               {buoy.name}
                             </div>
                             {selectedBuoy === buoy.name && <Check className="w-4 h-4" />}
@@ -1166,48 +1200,42 @@ export default function App() {
                       const isExpanded = expandedBuoyId === buoy.id;
                       return (
                         <div key={buoy.id} className="flex flex-col relative transition-all lg:hover:z-10 lg:hover:border-t-transparent lg:hover:[&+*]:border-t-transparent group/buoy">
-                          <Tooltip 
-                            side="top"
-                            align="center"
-                            className="w-[85vw] max-w-[320px] sm:max-w-[400px]"
-                            content={
-                              <div className="space-y-2 p-0.5 w-full">
-                                <div className="flex items-center justify-between gap-4">
-                                  <h4 className="text-[10px] font-black uppercase tracking-tight text-primary leading-none italic">Buoy <span className="text-on-surface not-italic">Location</span></h4>
-                                  <span className="text-[8px] font-bold opacity-50 font-mono">{buoy.lat?.toFixed(4)}, {buoy.lon?.toFixed(4)}</span>
-                                </div>
-                                <div className="w-full aspect-[2/1] rounded-lg overflow-hidden border border-black/10 dark:border-white/10 shadow-inner bg-black/20">
-                                  <StaticMap 
-                                    lat={buoy.lat || 0} 
-                                    lon={buoy.lon || 0} 
-                                    name={buoy.name} 
-                                    className="opacity-80"
-                                  />
-                                </div>
-                              </div>
-                            }
+                          <motion.div 
+                            whileTap={{ scale: 0.98 }} 
+                            onClick={() => setExpandedBuoyId(isExpanded ? null : buoy.id)} 
+                            className={`relative py-5 px-8 flex items-center justify-between cursor-pointer transition-all overflow-hidden ${selectedBuoy === buoy.name ? "bg-primary/10" : "lg:group-hover/buoy:bg-black/10 lg:dark:group-hover/buoy:bg-white/10"}`}
                           >
-                            <motion.div 
-                              whileTap={{ scale: 0.98 }} 
-                              onClick={() => setExpandedBuoyId(isExpanded ? null : buoy.id)} 
-                              className={`relative py-5 px-8 flex items-center justify-between cursor-pointer transition-all overflow-hidden ${selectedBuoy === buoy.name ? "bg-primary/10" : "lg:group-hover/buoy:bg-black/10 lg:dark:group-hover/buoy:bg-white/10"}`}
-                            >
-                              <div className="relative z-10 flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border transition-all ${buoy.active ? "bg-[#ccff00]/10 text-[#718800] dark:text-[#ccff00] border-[#718800]/30 dark:border-[#ccff00]/20 shadow-[0_0_10px_rgba(204,255,0,0.1)]" : "bg-on-surface-variant/10 text-on-surface-variant border-transparent"}`}><MapPin className="w-5 h-5" /></div>
-                                <div>
-                                  <h3 className="text-base font-black text-on-surface uppercase tracking-tight">{buoy.name}</h3>
-                                  <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.1em]">{buoy.lat?.toFixed(3) || "0.000"}, {buoy.lon?.toFixed(3) || "0.000"}</p>
-                                </div>
+                            <div className="relative z-10 flex items-center gap-4">
+                              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border transition-all ${
+                                buoy.active 
+                                  ? (buoy.tempC !== null && buoy.tempC !== undefined && !isNaN(buoy.tempC) 
+                                    ? "bg-[#ccff00]/10 text-[#718800] dark:text-[#ccff00] border-[#718800]/30 dark:border-[#ccff00]/20 shadow-[0_0_10px_rgba(204,255,0,0.1)]" 
+                                    : "bg-[#ffbf00]/10 text-[#ffbf00] border-[#ffbf00]/30 shadow-[0_0_10px_rgba(255,191,0,0.1)]") 
+                                  : "bg-on-surface-variant/10 text-on-surface-variant border-transparent"
+                              }`}><MapPin className="w-5 h-5" /></div>
+                              <div>
+                                <h3 className="text-base font-black text-on-surface uppercase tracking-tight">{buoy.name}</h3>
+                                <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-[0.1em]">{buoy.lat?.toFixed(3) || "0.000"}, {buoy.lon?.toFixed(3) || "0.000"}</p>
                               </div>
-                              <div className="flex items-center gap-5">
-                                <div className="text-right">
-                                  <p className={`text-2xl font-black drop-shadow-sm ${getTemperatureColor(buoy.tempF || 0)}`}>{buoy.tempC ? (unit === "F" ? buoy.tempF : buoy.tempC) : "--"}°</p>
-                                  <span className={`text-[10px] font-black uppercase tracking-widest ${buoy.active ? "text-[#718800] dark:text-[#ccff00]" : "text-on-surface-variant"}`}>{buoy.active ? "Active" : "Offline"}</span>
-                                </div>
-                                <ChevronRight className={`w-5 h-5 text-primary/40 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                            </div>
+                            <div className="flex items-center gap-5">
+                              <div className="text-right">
+                                <p className={`text-2xl font-black drop-shadow-sm ${getTemperatureColor(buoy.tempF || 0)}`}>
+                                  {buoy.tempC !== null && buoy.tempC !== undefined && !isNaN(buoy.tempC) 
+                                    ? `${unit === "F" ? Math.round(buoy.tempF || 0) : Math.round(buoy.tempC)}°` 
+                                    : "--°"}
+                                </p>
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${
+                                  buoy.active 
+                                    ? (buoy.tempC !== null && buoy.tempC !== undefined && !isNaN(buoy.tempC) ? "text-[#718800] dark:text-[#ccff00]" : "text-[#ffbf00]") 
+                                    : "text-on-surface-variant"
+                                }`}>
+                                  {buoy.active ? (buoy.tempC !== null && buoy.tempC !== undefined && !isNaN(buoy.tempC) ? "Active" : "Partial") : "Offline"}
+                                </span>
                               </div>
-                            </motion.div>
-                          </Tooltip>
+                              <ChevronRight className={`w-5 h-5 text-primary/40 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                            </div>
+                          </motion.div>
 
                           <AnimatePresence>
                             {isExpanded && (
