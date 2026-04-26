@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
-import { ShieldAlert, FileText, ArrowLeft, Globe, Scale, Fingerprint, Lock, Mail, MessageSquare } from "lucide-react";
+import { ShieldAlert, FileText, ArrowLeft, Globe, Scale, Fingerprint, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export const TOSPage: React.FC = () => {
@@ -71,80 +71,6 @@ export const TOSPage: React.FC = () => {
               These mapping services are selected based on their technical reliability and availability. For enhanced precision or custom styling, the platform also supports professional integration with Google Maps and Mapbox via private configuration.
             </p>
           </div>
-        </div>
-      </section>
-
-      {/* Suggestion Form */}
-      <section className="bg-surface-container-low rounded-[2.5rem] p-8 border border-black/5 dark:border-white/10 shadow-sm relative overflow-hidden group">
-        <div className="absolute top-0 right-0 p-8 opacity-[0.03] transition-opacity group-hover:opacity-[0.07]">
-          <Globe className="w-48 h-48" />
-        </div>
-        
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <MessageSquare className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-lg font-black text-on-surface uppercase tracking-tight">Suggestions</h2>
-              <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Help improve our mapping sources</p>
-            </div>
-          </div>
-          
-          <p className="text-sm font-medium leading-relaxed text-on-surface-variant mb-8">
-            Know of a better free mapping service or have general feedback? We're always looking for high-quality, open-source alternatives.
-          </p>
-
-          <form 
-            onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              const name = formData.get('name');
-              const service = formData.get('service');
-              const message = formData.get('message');
-              const body = `Name: ${name}\nSuggested Service: ${service}\n\nMessage:\n${message}`;
-              window.location.href = `mailto:brandon.pliska@gmail.com?subject=2lakes.app Suggestion&body=${encodeURIComponent(body)}`;
-            }}
-            className="space-y-4"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant ml-2">Name</label>
-                <input 
-                  name="name"
-                  type="text" 
-                  placeholder="Your name" 
-                  required
-                  className="w-full bg-surface-container-highest/20 border border-black/5 dark:border-white/10 rounded-2xl px-5 py-4 text-sm font-semibold placeholder:opacity-30 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant ml-2">Service Idea</label>
-                <input 
-                  name="service"
-                  type="text" 
-                  placeholder="e.g. Mapbox, Leaflet, etc." 
-                  className="w-full bg-surface-container-highest/20 border border-black/5 dark:border-white/10 rounded-2xl px-5 py-4 text-sm font-semibold placeholder:opacity-30 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant ml-2">Message & Details</label>
-              <textarea 
-                name="message"
-                placeholder="Tell us more about the service or your suggestion..." 
-                required
-                rows={4}
-                className="w-full bg-surface-container-highest/20 border border-black/5 dark:border-white/10 rounded-2xl px-5 py-4 text-sm font-semibold placeholder:opacity-30 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
-              />
-            </div>
-            <button 
-              type="submit"
-              className="w-full py-4 bg-primary text-white font-black uppercase tracking-widest rounded-2xl shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
-            >
-              Send Suggestion
-            </button>
-          </form>
         </div>
       </section>
 
