@@ -718,16 +718,21 @@ export default function App() {
                             : (lastWaterTempPoint ? "Last Recorded" : "Sensor Offline")}
                         </p>
                         <div className="flex gap-4 mt-2 text-on-surface-variant font-black text-base drop-shadow-sm">
-                          {((data?.tempC !== null && data?.tempC !== undefined && !isNaN(data?.tempC)) || lastWaterTempPoint) && (
-                            <>
-                            <span>High: <span className={getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) + 2)}>
-                              {Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) || 0) + 2)}°
-                            </span></span>
-                            <span>Low: <span className={getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) - 3)}>
-                              {Math.round(((unit === "F" ? (data?.tempF ?? lastWaterTempPoint?.tempF) : (data?.tempC ?? lastWaterTempPoint?.tempC)) || 0) - 3)}°
-                            </span></span>
-                            </>
-                          )}
+                          {(() => {
+                            const baseVal = unit === "F" 
+                              ? (data?.tempF ?? lastWaterTempPoint?.tempF) 
+                              : (data?.tempC ?? lastWaterTempPoint?.tempC);
+                            return !isNaN(baseVal ?? NaN) ? (
+                              <>
+                                <span>High: <span className={getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) + 2)}>
+                                  {Math.round((baseVal || 0) + 2)}°
+                                </span></span>
+                                <span>Low: <span className={getTemperatureColor((data?.tempF ?? lastWaterTempPoint?.tempF ?? 0) - 3)}>
+                                  {Math.round((baseVal || 0) - 3)}°
+                                </span></span>
+                              </>
+                            ) : null;
+                          })()}
                         </div>
                         <div className="mt-6">
                           <TempLegend unit={unit} />
@@ -980,9 +985,9 @@ export default function App() {
                       </div>
                       <div className="flex flex-col items-center">
                         <p className={`text-5xl font-black drop-shadow-sm ${getTemperatureColor(data?.airTempF ?? lastAirTempPoint?.airTempF ?? 0)}`}>
-                          {data?.airTempC !== null && data?.airTempC !== undefined && !isNaN(data.airTempF || 0)
+                          {data?.airTempC !== null && data?.airTempC !== undefined && !isNaN(data.airTempF || 0) && !isNaN(data.airTempC || 0)
                             ? Math.round(unit === "F" ? (data.airTempF ?? 0) : (data.airTempC ?? 0))
-                            : (lastAirTempPoint ? Math.round(unit === "F" ? (lastAirTempPoint.airTempF || 0) : (lastAirTempPoint.airTempC || 0)) : "--")}°
+                            : (lastAirTempPoint && !isNaN(lastAirTempPoint.airTempF || 0) ? Math.round(unit === "F" ? (lastAirTempPoint.airTempF || 0) : (lastAirTempPoint.airTempC || 0)) : "--")}°
                         </p>
                         <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant mt-2">
                           {data?.airTempC !== null && data?.airTempC !== undefined ? "Surface Level" : "Last Hour"}
