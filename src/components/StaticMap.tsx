@@ -9,9 +9,8 @@ interface StaticMapProps {
 }
 
 /**
- * A robust static map component that supports multiple providers.
- * Default is Yandex with a CSS crop to hide localized (Russian) branding text.
- * Can be overridden by VITE_GOOGLE_MAPS_API_KEY or VITE_MAPBOX_ACCESS_TOKEN.
+ * A robust static map component that exclusively uses free mapping services (Yandex).
+ * Uses a CSS crop to hide localized branding text for a cleaner UI.
  */
 export const StaticMap: React.FC<StaticMapProps> = ({ 
   lat, 

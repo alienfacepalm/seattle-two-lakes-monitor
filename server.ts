@@ -28,15 +28,30 @@ if (fs.existsSync(firebaseConfigPath)) {
 
 let syncStats = {
   lastSync: "Never",
+  lastSyncTimestamp: 0,
   pointsSaved: 0,
   errors: 0
 };
+
+/**
+ * Triggers background sync if it hasn't run in the last hour.
+ * This "lazy sync" approach allows the Cloud Run container to scale to 0 when idle,
+ * significantly reducing hosting costs.
+ */
+function triggerLazySync() {
+  const ONE_HOUR = 60 * 60 * 1000;
+  if (Date.now() - syncStats.lastSyncTimestamp > ONE_HOUR) {
+    // Run in background, don't await to keep request responsive
+    performBackgroundSync().catch(err => console.error("[Sync] Lazy sync failed:", err));
+  }
+}
 
 async function performBackgroundSync() {
   if (!db) {
     console.log("[Background Sync] Skipped: Firebase not initialized");
     return;
   }
+  syncStats.lastSyncTimestamp = Date.now();
   console.log("[Background Sync] Starting fetch at", new Date().toISOString());
   
   try {
@@ -55,7 +70,6 @@ async function performBackgroundSync() {
         if (nameIndex === -1) continue;
         
         const rawName = parts[nameIndex];
-        let buoyName = rawName;
         
         // Strict mapping to BUOY_CONFIGS
         const configEntry = Object.entries(BUOY_CONFIGS).find(([name, cfg]) => {
@@ -63,18 +77,15 @@ async function performBackgroundSync() {
           const sn = cfg.searchName.toLowerCase();
           const fn = name.toLowerCase();
           
-          return ln === sn || ln === fn;
+          return ln === sn || ln === fn || ln.includes(sn);
         });
 
-        if (configEntry) {
-          buoyName = configEntry[0];
-        } else {
-          // Fallback for partial matches if exact fails
-          const partialMatch = Object.entries(BUOY_CONFIGS).find(([name, cfg]) => {
-            return rawName.toLowerCase().includes(cfg.searchName.toLowerCase());
-          });
-          if (partialMatch) buoyName = partialMatch[0];
+        if (!configEntry) {
+          // Skip buoys not in our configuration
+          continue;
         }
+
+        const buoyName = configEntry[0];
 
         const getVal = (idx: number) => {
           const val = parts[nameIndex + idx];
@@ -194,6 +205,9 @@ async function startServer() {
 
   // API Route to fetch buoy data
   app.get("/api/buoy-data", async (req, res) => {
+    // Trigger a sync if needed (won't block this request)
+    if (db) triggerLazySync();
+    
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     const requestedBuoy = (req.query.buoy as string) || "Lake Sammamish";
     console.log(`[API] Fetching buoy data for: ${requestedBuoy}`);
@@ -670,10 +684,8 @@ async function startServer() {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
     
-    // Start background sync every hour
+    // Perform an initial sync at startup
     if (db) {
-      setInterval(performBackgroundSync, 60 * 60 * 1000);
-      // Run initial sync
       performBackgroundSync();
     }
   });
