@@ -5,7 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, query, where, getDocs, limit, serverTimestamp } from "firebase/firestore";
+import { getFirestore, collection, addDoc, query, where, getDocs, limit, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { BUOY_CONFIGS, NWS_USER_AGENT, CACHE_TTL, NWS_TIMEOUT } from "./src/constants.ts";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -189,10 +189,113 @@ async function performBackgroundSync() {
 
 // Simple in-memory cache for NWS data
 const nwsCache: Record<string, { data: any, expires: number }> = {};
+const apiRateLimits: Record<string, number[]> = {};
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // 1. Enable CORS for all API calls to support cross-origin external clients cleanly
+  app.use("/api", (req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-API-Key, Authorization");
+    
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
+  // 2. Middleware to secure external access and prevent abuse
+  async function validateExternalAccess(req: express.Request, res: express.Response, next: express.NextFunction) {
+    const secFetchSite = req.headers["sec-fetch-site"];
+    const referer = (req.headers["referer"] as string) || "";
+    const origin = (req.headers["origin"] as string) || "";
+    const host = req.headers["host"] || "";
+    
+    // Internal referers, same-origin, or localhost development bypass
+    const isInternal = 
+      secFetchSite === "same-origin" || 
+      (referer && referer.includes(host)) ||
+      (origin && origin.includes(host)) ||
+      process.env.NODE_ENV !== "production";
+      
+    if (isInternal && !req.query.apiKey && !req.headers["x-api-key"] && !req.headers["authorization"]) {
+      return next();
+    }
+
+    // Extract API key
+    let apiKey = (req.query.apiKey || req.headers["x-api-key"]) as string;
+    const authHeader = req.headers["authorization"];
+    if (!apiKey && authHeader && authHeader.startsWith("Bearer ")) {
+      apiKey = authHeader.substring(7);
+    }
+
+    if (!apiKey) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "External access requires an API Key. Please pass it via an 'apiKey' query parameter, an 'X-API-Key' header, or an 'Authorization: Bearer <Key>' header. Retrieve or generate your developer key in the app Settings menu."
+      });
+    }
+
+    let isValid = false;
+    let keyData: any = null;
+
+    if (db) {
+      try {
+        const docRef = doc(db, "api_keys", apiKey);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          keyData = docSnap.data();
+          if (keyData && keyData.active !== false) {
+            isValid = true;
+          }
+        }
+      } catch (err) {
+        console.error(`[API Key Validation] Error fetching key from Firestore:`, err);
+      }
+    }
+
+    // Static ENV fallback for absolute safety
+    if (!isValid && process.env.EXTERNAL_API_KEY && apiKey === process.env.EXTERNAL_API_KEY) {
+      isValid = true;
+      keyData = { name: "Master ENV Key", rateLimit: 120 };
+    }
+
+    if (!isValid) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Invalid, expired, or deactivated API Key. Please verify or regenerate your developer key in the app Settings menu."
+      });
+    }
+
+    // Sliding window rate limiter
+    const now = Date.now();
+    const limitWindowMs = 60 * 1000;
+    const maxRequestsPerMin = keyData.rateLimit || 60; // 60 RPM default
+
+    if (!apiRateLimits[apiKey]) {
+      apiRateLimits[apiKey] = [];
+    }
+
+    // Evict expired entries
+    apiRateLimits[apiKey] = apiRateLimits[apiKey].filter(t => now - t < limitWindowMs);
+
+    if (apiRateLimits[apiKey].length >= maxRequestsPerMin) {
+      return res.status(429).json({
+        error: "Too Many Requests",
+        message: `Rate limit of ${maxRequestsPerMin} requests per minute exceeded.`
+      });
+    }
+
+    apiRateLimits[apiKey].push(now);
+
+    res.setHeader("X-RateLimit-Limit", maxRequestsPerMin);
+    res.setHeader("X-RateLimit-Remaining", maxRequestsPerMin - apiRateLimits[apiKey].length);
+
+    next();
+  }
 
   // Health check route
   app.get("/api/health", (req, res) => {
@@ -204,7 +307,7 @@ async function startServer() {
   });
 
   // API Route to fetch buoy data
-  app.get("/api/buoy-data", async (req, res) => {
+  app.get("/api/buoy-data", validateExternalAccess, async (req, res) => {
     // Trigger a sync if needed (won't block this request)
     if (db) triggerLazySync();
     
@@ -506,8 +609,8 @@ async function startServer() {
     }
   });
 
-  // API Route to fetch all buoy data for the map
-  app.get("/api/all-buoys", async (req, res) => {
+  // Handler for fetching all buoy data
+  const getAllBuoys = async (req: express.Request, res: express.Response) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     console.log("[API] Fetching all buoys");
     try {
@@ -615,7 +718,10 @@ async function startServer() {
       }));
       res.json(fallback);
     }
-  });
+  };
+
+  app.get("/api/all-buoys", validateExternalAccess, getAllBuoys);
+  app.get("/api/all-buoy-data", validateExternalAccess, getAllBuoys);
 
   // API Route to fetch history (simulated for now based on real current data)
   app.get("/api/buoy-history", async (req, res) => {

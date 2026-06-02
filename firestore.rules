@@ -67,6 +67,16 @@ service cloud.firestore {
       // Snapshots should be immutable
       allow update, delete: if false;
     }
+
+    match /api_keys/{keyId} {
+      // Anyone can look up individual key details securely using the keyId
+      allow get: if true;
+      
+      // Only the authenticated owner can access full lists or modify their own keys
+      allow list: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.uid == request.auth.uid && (request.method == 'delete' || request.resource.data.uid == request.auth.uid);
+    }
     
     match /{path=**} {
       allow read, write: if false;
