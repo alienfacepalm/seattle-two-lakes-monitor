@@ -5,9 +5,8 @@ import {
   Key, Copy, Check, Eye, EyeOff, Terminal, Zap 
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { db, auth } from "../firebase";
-import { collection, query, where, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
-import { signInAnonymously } from "firebase/auth";
+import { db } from "../firebase";
+import { doc, setDoc, deleteDoc, getDoc } from "firebase/firestore";
 
 interface SettingsMenuProps {
   isOpen: boolean;
@@ -33,38 +32,28 @@ const DeveloperApiSection = ({ isOpen }: DeveloperApiProps) => {
   const [showHowToUse, setShowHowToUse] = React.useState(false);
 
   const fetchKey = React.useCallback(async () => {
-    let currentUser = auth.currentUser;
-    if (!currentUser) {
-      try {
-        const cred = await signInAnonymously(auth);
-        currentUser = cred.user;
-      } catch (err) {
-        console.warn("Could not authenticate user anonymously:", err);
-      }
-    }
-
-    if (!currentUser) {
-      setError("Unable to authenticate connection.");
+    const storedKeyId = localStorage.getItem("buoy_api_key");
+    if (!storedKeyId) {
+      setKeyDoc(null);
       return;
     }
 
     setLoading(true);
     setError(null);
     try {
-      const q = query(
-        collection(db, "api_keys"),
-        where("uid", "==", currentUser.uid)
-      );
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const firstDoc = snap.docs[0];
-        setKeyDoc({ id: firstDoc.id, ...firstDoc.data() } as any);
+      const docRef = doc(db, "api_keys", storedKeyId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setKeyDoc({ id: docSnap.id, active: data ? data.active !== false : true });
       } else {
+        localStorage.removeItem("buoy_api_key");
         setKeyDoc(null);
       }
     } catch (err: any) {
-      console.error("Error fetching API Key:", err);
-      setError("Please check your database connection.");
+      console.error("Error fetching API Key from db:", err);
+      // Fallback: show local key even if offline or permission denied
+      setKeyDoc({ id: storedKeyId, active: true });
     } finally {
       setLoading(false);
     }
@@ -77,17 +66,6 @@ const DeveloperApiSection = ({ isOpen }: DeveloperApiProps) => {
   }, [isOpen, fetchKey]);
 
   const generateKey = async () => {
-    let currentUser = auth.currentUser;
-    if (!currentUser) {
-      try {
-        const cred = await signInAnonymously(auth);
-        currentUser = cred.user;
-      } catch (err) {
-        setError("Sign-in required to generate an API key.");
-        return;
-      }
-    }
-
     setLoading(true);
     setError(null);
     try {
@@ -98,31 +76,36 @@ const DeveloperApiSection = ({ isOpen }: DeveloperApiProps) => {
       }
 
       await setDoc(doc(db, "api_keys", randomId), {
-        uid: currentUser.uid,
+        uid: "localStorage_guest",
         active: true,
         createdAt: new Date().toISOString(),
         name: "Default API Key"
       });
 
+      localStorage.setItem("buoy_api_key", randomId);
       setKeyDoc({ id: randomId, active: true });
     } catch (err: any) {
       console.error("Error generating API key:", err);
-      setError("Failed to create key. Verify Firestore connectivity.");
+      setError("Failed to create key. Verify your Firestore connection in settings.");
     } finally {
       setLoading(false);
     }
   };
 
   const deleteKey = async () => {
-    if (!keyDoc) return;
+    const storedKeyId = localStorage.getItem("buoy_api_key");
+    if (!storedKeyId) return;
     setLoading(true);
     setError(null);
     try {
-      await deleteDoc(doc(db, "api_keys", keyDoc.id));
+      await deleteDoc(doc(db, "api_keys", storedKeyId));
+      localStorage.removeItem("buoy_api_key");
       setKeyDoc(null);
     } catch (err: any) {
       console.error("Error deleting API key:", err);
-      setError("Failed to revoke key.");
+      // Also clear local memory/cache anyway to let them cycle keys
+      localStorage.removeItem("buoy_api_key");
+      setKeyDoc(null);
     } finally {
       setLoading(false);
     }
