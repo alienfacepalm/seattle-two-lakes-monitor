@@ -221,6 +221,12 @@ export default function App() {
   const [isIOS, setIsIOS] = useState(false);
   const [showRadarModal, setShowRadarModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showShutdownBanner, setShowShutdownBanner] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("shutdown-banner-dismissed") !== "true";
+    }
+    return true;
+  });
   const [expandedBuoyId, setExpandedBuoyId] = useState<string | null>(null);
   const [expandedForecastIdx, setExpandedForecastIdx] = useState<number | null>(null);
   const [mapZoom, setMapZoom] = useState<Record<string, number>>({});
@@ -540,6 +546,47 @@ export default function App() {
         <div className={`lake-bg lake-bg-${timeOfDay}`} />
         <div className="lake-waves" />
       </>
+
+      <AnimatePresence>
+        {showShutdownBanner && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="shrink-0 bg-yellow-400 text-neutral-900 border-b border-yellow-500/30 overflow-hidden relative z-50 text-[13px] leading-relaxed py-3 px-4 sm:px-6 shadow-md"
+          >
+            <div className="max-w-4xl mx-auto flex items-start gap-3 pr-8 sm:pr-10 relative">
+              <AlertTriangle className="w-5 h-5 text-neutral-950 shrink-0 mt-0.5" />
+              <div className="flex-1 font-bold">
+                <span className="font-extrabold uppercase tracking-wider text-red-800 mr-2">Notice:</span>
+                This project will be shutting down. If you care about it, email{" "}
+                <a 
+                  href="mailto:jagon@alienfacepalm.com" 
+                  className="underline hover:text-neutral-950 transition-colors font-extrabold"
+                >
+                  jagon@alienfacepalm.com
+                </a>{" "}
+                to express your opinion. Perhaps I can be convinced to keep it. Or maybe we can add a donate button to keep it running. It's about $50 a month because it's collecting historical data, we could lose that part if it's not important and the cost would be much lower.
+              </div>
+              <button
+                onClick={() => {
+                  try {
+                    localStorage.setItem("shutdown-banner-dismissed", "true");
+                  } catch (e) {
+                    console.error("Local storage error:", e);
+                  }
+                  setShowShutdownBanner(false);
+                }}
+                className="absolute right-0 top-0 sm:top-1/2 sm:-translate-y-1/2 p-2 rounded-full hover:bg-neutral-950/10 text-neutral-900 hover:text-neutral-950 transition-all cursor-pointer flex items-center justify-center"
+                title="Dismiss message"
+              >
+                <X className="w-4 h-4 shrink-0" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <header className="shrink-0 z-50 bg-surface/70 backdrop-blur-2xl flex items-center justify-between px-4 sm:px-6 min-h-[4rem] border-b border-black/5 dark:border-white/5 pt-safe">
         <div className="flex items-center gap-2 sm:gap-3">
