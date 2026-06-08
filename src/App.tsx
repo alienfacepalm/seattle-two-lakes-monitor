@@ -223,7 +223,12 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showShutdownBanner, setShowShutdownBanner] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("shutdown-banner-dismissed") !== "true";
+      const dismissedAt = localStorage.getItem("shutdown-banner-dismissed-at");
+      if (!dismissedAt) return true;
+      const dismissedTime = parseInt(dismissedAt, 10);
+      if (isNaN(dismissedTime)) return true;
+      const thirtyDays = 30 * 24 * 60 * 60 * 1000; // Reminder shown once a month
+      return Date.now() - dismissedTime > thirtyDays;
     }
     return true;
   });
@@ -560,19 +565,19 @@ export default function App() {
               <AlertTriangle className="w-5 h-5 text-neutral-950 shrink-0 mt-0.5" />
               <div className="flex-1 font-bold">
                 <span className="font-extrabold uppercase tracking-wider text-red-800 mr-2">Notice:</span>
-                This project will be shutting down. If you care about it, email{" "}
+                This project will be shutting down soon. If you use this app and care about keeping it alive, please email{" "}
                 <a 
                   href="mailto:jagon@alienfacepalm.com" 
                   className="underline hover:text-neutral-950 transition-colors font-extrabold"
                 >
                   jagon@alienfacepalm.com
                 </a>{" "}
-                to express your opinion. Perhaps I can be convinced to keep it. Or maybe we can add a donate button to keep it running. It's about $50 a month because it's collecting historical data, we could lose that part if it's not important and the cost would be much lower.
+                to express your opinion, or let us know if you would support options like Patreon or donations. Currently, hosting costs about $50/month because we continuously collect historical data; we could potentially disable history to lower costs if that part isn't important to you.
               </div>
               <button
                 onClick={() => {
                   try {
-                    localStorage.setItem("shutdown-banner-dismissed", "true");
+                    localStorage.setItem("shutdown-banner-dismissed-at", Date.now().toString());
                   } catch (e) {
                     console.error("Local storage error:", e);
                   }
