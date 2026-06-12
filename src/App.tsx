@@ -809,7 +809,7 @@ export default function App() {
                               </span>
                             ) : history.length > 0 && (
                               <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
-                                Since {new Date(history[0].time).toLocaleDateString()}
+                                Since {new Date(history[history.length - 1].time).toLocaleDateString()}
                               </span>
                             )}
                           </div>

@@ -410,8 +410,9 @@ async function startServer() {
       const lat = getVal(7) || config.defaultLat;
       const lon = getVal(8) || config.defaultLon;
 
-      // Extremely lenient: if we have any meaningful data, it's active.
-      const isActive = !isNaN(tempC) || !isNaN(airTempC) || !isNaN(windSpeed);
+      // Use the last parameter (Y/N) from King County API as the primary active flag, with sensor data as fallback
+      const activeIndicator = parts[parts.length - 1]?.trim().replace(/\^$/, "").toUpperCase();
+      const isActive = activeIndicator === "Y" || (!isNaN(tempC) || !isNaN(airTempC) || !isNaN(windSpeed));
       
       console.log(`[API] ${requestedBuoy} - nameIndex: ${nameIndex}, tempC: ${tempC}, airTempC: ${airTempC}, isActive: ${isActive}`);
       
@@ -663,8 +664,9 @@ async function startServer() {
         const lat = getVal(7);
         const lon = getVal(8);
         
-        // Active if ANY sensor is providing data
-        const active = !isNaN(tempC) || !isNaN(airTempC) || !isNaN(windSpeed);
+        // Use the last parameter (Y/N) from King County API as the primary active flag, with sensor data as fallback
+        const activeIndicator = parts[parts.length - 1]?.trim().replace(/\^$/, "").toUpperCase();
+        const active = activeIndicator === "Y" || (!isNaN(tempC) || !isNaN(airTempC) || !isNaN(windSpeed));
         
         return {
           id: displayName.toLowerCase().replace(/\s+/g, '-'),
