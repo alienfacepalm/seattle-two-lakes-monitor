@@ -9,10 +9,8 @@ import {
   CloudDrizzle, 
   Cloudy as CloudyIcon 
 } from "lucide-react";
-import React from "react";
-import { getSeasonalLakeBackground } from "./seasonal-background";
 
-export { getSeasonFromDate, getSeasonalLakeBackground } from "./seasonal-background";
+export { getBuoyBackground, getSeasonFromDate, getSeasonalLakeBackground } from "./seasonal-background";
 export type { LakeSeason } from "./seasonal-background";
 
 export const getConditionIcon = (condition: string, colorClass?: string) => {
@@ -29,9 +27,7 @@ export const getConditionIcon = (condition: string, colorClass?: string) => {
   return <Waves className={iconClass} opacity={0.4} />;
 };
 
-export const getBuoyBackground = (date: Date = new Date()) => {
-  return getSeasonalLakeBackground(date);
-};
+export const BUOY_CARD_BG_CLASS = "buoy-card-bg";
 
 export const TEMP_SCALE = [
   { min: -Infinity, max: 45, color: "indigo", classes: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-600 dark:bg-indigo-400" },

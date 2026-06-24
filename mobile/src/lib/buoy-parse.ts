@@ -1,0 +1,181 @@
+import { BUOY_CONFIGS } from "../constants";
+import type { MapBuoy } from "../types";
+
+export type TBuoyConfig = (typeof BUOY_CONFIGS)[keyof typeof BUOY_CONFIGS] & {
+  fullName: string;
+};
+
+export function parseBuoyLines(text: string): string[] {
+  return text.split("^").filter((line) => line.trim() !== "");
+}
+
+export function findConfigForRawName(
+  rawName: string
+): [string, (typeof BUOY_CONFIGS)[keyof typeof BUOY_CONFIGS]] | null {
+  const configEntry = Object.entries(BUOY_CONFIGS).find(([name, cfg]) => {
+    const ln = rawName.toLowerCase();
+    const sn = cfg.searchName.toLowerCase();
+    const fn = name.toLowerCase();
+    return ln === sn || ln === fn || ln.includes(sn);
+  });
+  return configEntry ?? null;
+}
+
+export function resolveBuoyConfig(requestedBuoy: string): TBuoyConfig {
+  const configEntry = Object.entries(BUOY_CONFIGS).find(([name]) => name === requestedBuoy);
+  if (configEntry) {
+    return { ...configEntry[1], fullName: configEntry[0] };
+  }
+  return {
+    searchName: requestedBuoy.toLowerCase().replace(" buoy", "").replace(" lake", "").trim(),
+    fullName: requestedBuoy,
+    defaultLat: 47.6,
+    defaultLon: -122.3,
+  };
+}
+
+export function matchBuoyLine(lines: string[], requestedBuoy: string): string | undefined {
+  const config = resolveBuoyConfig(requestedBuoy);
+
+  return lines.find((line) => {
+    const parts = line.split("|").map((p) => p.trim());
+    const namePart = parts.find((p) => p.length > 0 && !p.startsWith("\t"));
+    if (!namePart) return false;
+    const ln = namePart.toLowerCase();
+    const sn = config.searchName.toLowerCase();
+    const fn = config.fullName.toLowerCase();
+    if (ln === sn || ln === fn) return true;
+    if (ln.includes(sn) && ln.includes("lake") && !ln.includes("river")) return true;
+    if (ln.includes(sn) && ln.includes("river") && !ln.includes("lake")) return true;
+    return false;
+  });
+}
+
+export function getVal(parts: string[], nameIndex: number, idx: number): number {
+  const val = parts[nameIndex + idx];
+  if (val === undefined || val === "" || val === null) return NaN;
+  const parsed = parseFloat(val);
+  return isNaN(parsed) ? NaN : parsed;
+}
+
+export function findNameIndex(parts: string[], config: TBuoyConfig): number {
+  return parts.findIndex((p) => {
+    const lp = p.toLowerCase();
+    const sn = config.searchName.toLowerCase();
+    const fn = config.fullName.toLowerCase();
+    return lp === sn || lp === fn || lp.includes(sn);
+  });
+}
+
+export function pickBestTimestamp(parts: string[], nameIndex: number): string {
+  const ts1 = parts[nameIndex + 1];
+  const ts2 = parts[nameIndex + 6];
+  let bestTimestamp = ts1 || ts2 || new Date().toISOString();
+  try {
+    const d1 = ts1 ? new Date(ts1).getTime() : NaN;
+    const d2 = ts2 ? new Date(ts2).getTime() : NaN;
+    if (!isNaN(d2) && (isNaN(d1) || d2 > d1)) bestTimestamp = ts2;
+  } catch {
+    /* keep bestTimestamp */
+  }
+  return bestTimestamp;
+}
+
+export function isBuoyActive(parts: string[], tempC: number, airTempC: number, windSpeed: number): boolean {
+  const activeIndicator = parts[parts.length - 1]?.trim().replace(/\^$/, "").toUpperCase();
+  return activeIndicator === "Y" || !isNaN(tempC) || !isNaN(airTempC) || !isNaN(windSpeed);
+}
+
+export function deriveCondition(
+  isActive: boolean,
+  tempC: number,
+  precipitation: number,
+  windSpeed: number
+): string {
+  if (!isActive) return "Unknown";
+  let condition = "Moderate";
+  if (!isNaN(precipitation) && precipitation > 0) {
+    condition = precipitation > 0.1 ? "Rainy" : "Showers";
+  } else if (!isNaN(tempC)) {
+    if (tempC > 22) condition = "Warm";
+    else if (tempC < 12) condition = "Cold";
+    else if (windSpeed > 15) condition = "Windy";
+    else if (tempC < 18 && windSpeed < 5) condition = "Overcast";
+    else if (tempC < 18) condition = "Cloudy";
+  }
+  return condition;
+}
+
+export function parseMapBuoyLine(line: string): MapBuoy | null {
+  const parts = line.split("|").map((p) => p.trim());
+  const nameIndex = parts.findIndex((p) => p.length > 0 && !p.startsWith("\t"));
+  if (nameIndex === -1) return null;
+
+  const rawName = parts[nameIndex];
+  let displayName = rawName;
+
+  const configEntry = findConfigForRawName(rawName);
+  if (configEntry) {
+    displayName = configEntry[0];
+  } else {
+    const partial = Object.entries(BUOY_CONFIGS).find(([, cfg]) =>
+      rawName.toLowerCase().includes(cfg.searchName.toLowerCase())
+    );
+    if (partial) displayName = partial[0];
+  }
+
+  const tempC = getVal(parts, nameIndex, 5);
+  const airTempC = getVal(parts, nameIndex, 2);
+  const windSpeed = getVal(parts, nameIndex, 3);
+  const latVal = getVal(parts, nameIndex, 7);
+  const lonVal = getVal(parts, nameIndex, 8);
+  const active = isBuoyActive(parts, tempC, airTempC, windSpeed);
+
+  return {
+    id: displayName.toLowerCase().replace(/\s+/g, "-"),
+    name: displayName,
+    tempC: isNaN(tempC) ? null : parseFloat(tempC.toFixed(2)),
+    tempF: isNaN(tempC) ? null : Math.round((tempC * 9) / 5 + 32),
+    lat: isNaN(latVal) ? 0 : latVal,
+    lon: isNaN(lonVal) ? 0 : lonVal,
+    active,
+  };
+}
+
+export function mergeAllBuoys(apiBuoys: MapBuoy[]): MapBuoy[] {
+  const finalResultsMap = new Map<string, MapBuoy>();
+  apiBuoys.forEach((b) => {
+    const key = b.name;
+    if (!finalResultsMap.has(key) || (b.tempC !== null && finalResultsMap.get(key)!.tempC === null)) {
+      finalResultsMap.set(key, b);
+    }
+  });
+
+  Object.entries(BUOY_CONFIGS).forEach(([buoyName, cfg]) => {
+    if (!finalResultsMap.has(buoyName)) {
+      finalResultsMap.set(buoyName, {
+        id: buoyName.toLowerCase().replace(/\s+/g, "-"),
+        name: buoyName,
+        tempC: null,
+        tempF: null,
+        lat: cfg.defaultLat,
+        lon: cfg.defaultLon,
+        active: false,
+      });
+    }
+  });
+
+  return Array.from(finalResultsMap.values());
+}
+
+export function fallbackAllBuoys(): MapBuoy[] {
+  return Object.entries(BUOY_CONFIGS).map(([buoyName, cfg]) => ({
+    id: buoyName.toLowerCase().replace(/\s+/g, "-"),
+    name: buoyName,
+    tempC: null,
+    tempF: null,
+    lat: cfg.defaultLat,
+    lon: cfg.defaultLon,
+    active: false,
+  }));
+}

@@ -1,0 +1,47 @@
+---
+description: Dev server ports — no silent port hopping (root 3000, mobile 5173)
+alwaysApply: true
+---
+
+# Dev server ports
+
+**Fixed ports only.** Do not hop to `5174+` or alternate ports when the configured port is taken.
+
+## Repo root (`./`)
+
+| Setting | Value |
+|---------|--------|
+| Command | `pnpm dev` |
+| Port | **3000** (`tsx server.ts`) |
+| URL | `http://localhost:3000/` |
+
+If port 3000 is in use, **stop and report** — do not start a second server on another port unless the user asks.
+
+## Mobile (`mobile/`)
+
+| Setting | Value |
+|---------|--------|
+| Command | `pnpm dev` |
+| Port | **5173** (`strictPort: true`) |
+| URL | `http://127.0.0.1:5173/` |
+
+Config: `mobile/vite.config.ts`, `mobile/package.json`, `mobile/playwright.config.ts`, `mobile/scripts/dev-port.mjs`.
+
+### Before starting mobile dev server
+
+1. Run **`pnpm dev:port:check`** (from `mobile/`).
+2. If **free** → **`pnpm dev`** once (background OK).
+3. If **in use** → **do not** start another Vite instance or use another port.
+
+| Situation | Action |
+|-----------|--------|
+| Port serves 2lakes / Vite and matches the task | **Reuse** `http://127.0.0.1:5173/` |
+| Orphan from your session | **`pnpm dev:port:free`**, then **`pnpm dev`** |
+| Blocked by another app | **Stop and report** — do not hop ports |
+
+Multitask / subagents: run **`pnpm dev:port:check`** first; on conflict use **`pnpm dev:port:report`**.
+
+## Do not
+
+- Run bare `vite` without the project's port flags (use **`pnpm dev`**).
+- Start multiple dev servers on 5173, 5174, 5175…

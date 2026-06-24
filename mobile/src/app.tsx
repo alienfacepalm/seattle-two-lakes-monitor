@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useLayoutEffect, useMemo, Component } from "react";
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { useLocation, useNavigate, Routes, Route, Navigate, Link } from "react-router-dom";
+import { useLocation, Routes, Route, Navigate, Link } from "react-router-dom";
 import { 
   Waves, 
-  RefreshCw, 
+  
   Clock, 
   Thermometer, 
   MapPin, 
@@ -11,22 +11,17 @@ import {
   LayoutDashboard,
   Moon,
   Sun,
-  Cloud,
   CloudRain,
   Droplets,
   Wind,
   AlertCircle,
   AlertTriangle,
   CheckCircle2,
-  Download,
   X,
   Mountain,
   WifiOff,
-  Zap,
   ThermometerSnowflake,
   ThermometerSun,
-  CloudDrizzle,
-  Cloudy as CloudyIcon,
   ChevronDown,
   ChevronRight,
   Check,
@@ -37,94 +32,17 @@ import {
   Minus,
   Settings as SettingsIcon,
 } from "lucide-react";
-import { 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar
-} from "recharts";
-import { db, auth } from "./firebase";
-import { 
-  collection, 
-  addDoc, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
-  limit, 
-  getDocs,
-  Timestamp,
-  serverTimestamp,
-  getDocFromServer,
-  doc
-} from "firebase/firestore";
-import { signInAnonymously, onAuthStateChanged, User } from "firebase/auth";
-
-import { BuoyData, MapBuoy, HistoryPoint } from "./types";
-import { BUOY_CONFIGS } from "./constants";
-import { getConditionIcon, getBuoyBackground, getTemperatureColor } from "./lib/utils";
-import { IconGallery } from "./components/IconGallery";
-import { HistoryCharts } from "./components/HistoryCharts";
-import { Tooltip } from "./components/Tooltip";
-import { TempLegend } from "./components/TempLegend";
-import { SettingsMenu } from "./components/SettingsMenu";
-import { StaticMap } from "./components/StaticMap";
-import { TOSPage } from "./pages/TOSPage";
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
+import type { BuoyData, MapBuoy, HistoryPoint } from "./types";
+import { getBuoyData, getAllBuoys } from "./lib/buoy-api";
+import { saveSnapshot, loadHistory } from "./lib/history-store";
+import { getConditionIcon, getBuoyBackground, getTemperatureColor } from "./lib/utils.tsx";
+import { IconGallery } from "./components/icon-gallery";
+import { HistoryCharts } from "./components/history-charts";
+import { Tooltip } from "./components/tooltip";
+import { TempLegend } from "./components/temp-legend";
+import { SettingsMenu } from "./components/settings-menu";
+import { StaticMap } from "./components/static-map";
+import { TOSPage } from "./pages/tos-page";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -135,20 +53,17 @@ function ScrollToTop() {
   return null;
 }
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
-  public state: { hasError: boolean, error: any };
-  public props: { children: React.ReactNode };
-  
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: unknown }> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError(error: any) {
+  static getDerivedStateFromError(error: unknown) {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: any, errorInfo: any) {
+  componentDidCatch(error: unknown, errorInfo: unknown) {
     console.error("Uncaught error:", error, errorInfo);
   }
 
@@ -170,9 +85,9 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
             >
               Reload Application
             </button>
-            {process.env.NODE_ENV === 'development' && (
+            {import.meta.env.DEV && (
               <pre className="mt-8 p-4 bg-black/5 dark:bg-white/5 rounded-xl text-[10px] text-left overflow-auto max-h-40 font-mono opacity-50">
-                {this.state.error?.message || String(this.state.error)}
+                {this.state.error instanceof Error ? this.state.error.message : String(this.state.error)}
               </pre>
             )}
           </div>
@@ -210,34 +125,16 @@ export default function App() {
   const [lastFetchTime, setLastFetchTime] = useState<Date>(new Date());
   const [timeOfDay, setTimeOfDay] = useState("day");
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [nextSync, setNextSync] = useState("");
   const [pendingRefresh, setPendingRefresh] = useState(false);
   const [showOfflineAlert, setShowOfflineAlert] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
   const [showRadarModal, setShowRadarModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showShutdownBanner, setShowShutdownBanner] = useState(() => {
-    if (typeof window !== "undefined") {
-      const dismissedAt = localStorage.getItem("shutdown-banner-dismissed-at");
-      if (!dismissedAt) return true;
-      const dismissedTime = parseInt(dismissedAt, 10);
-      if (isNaN(dismissedTime)) return true;
-      const thirtyDays = 30 * 24 * 60 * 60 * 1000; // Reminder shown once a month
-      return Date.now() - dismissedTime > thirtyDays;
-    }
-    return true;
-  });
   const [expandedBuoyId, setExpandedBuoyId] = useState<string | null>(null);
   const [expandedForecastIdx, setExpandedForecastIdx] = useState<number | null>(null);
   const [mapZoom, setMapZoom] = useState<Record<string, number>>({});
 
   const location = useLocation();
-  const navigate = useNavigate();
   const activeTab = location.pathname === "/history" ? "history" : 
                     location.pathname === "/network" ? "map" : "current";
 
@@ -261,8 +158,6 @@ export default function App() {
   const airTempPoints = history.filter(p => p.airTempC !== null && p.airTempC !== undefined && !isNaN(p.airTempC));
   const hasAirTempData = airTempPoints.length > 0;
   const lastAirTempPoint = hasAirTempData ? airTempPoints[airTempPoints.length - 1] : null;
-  const avgAirTempC = hasAirTempData ? airTempPoints.reduce((acc, p) => acc + (p.airTempC ?? 0), 0) / airTempPoints.length : null;
-  const avgAirTempF = hasAirTempData ? airTempPoints.reduce((acc, p) => acc + (p.airTempF ?? 0), 0) / airTempPoints.length : null;
 
   const windPoints = history.filter(p => p.windSpeed !== null && p.windSpeed !== undefined && !isNaN(p.windSpeed));
   const hasWindData = windPoints.length > 0;
@@ -271,7 +166,6 @@ export default function App() {
   const dewpointPoints = history.filter(p => p.dewpoint !== null && p.dewpoint !== undefined && !isNaN(p.dewpoint));
   const hasDewpointData = dewpointPoints.length > 0;
   const avgDewpoint = hasDewpointData ? dewpointPoints.reduce((acc, p) => acc + (p.dewpoint ?? 0), 0) / dewpointPoints.length : null;
-  const currentDewpointAvailable = (data?.dewpoint !== null && data?.dewpoint !== undefined) || (data?.hourlyForecast?.[0]?.dewpoint !== null && data?.hourlyForecast?.[0]?.dewpoint !== undefined) || hasDewpointData;
   
   const sortedBuoys = useMemo(() => {
     return [...allBuoys].sort((a, b) => {
@@ -284,127 +178,42 @@ export default function App() {
     localStorage.setItem("selectedBuoy", selectedBuoy);
   }, [selectedBuoy]);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      if (u) {
-        setUser(u);
-      } else {
-        signInAnonymously(auth).catch(err => {
-          // Silent catch for admin-restricted-operation
-          // We've updated firestore rules to allow unauthenticated writes with strict validation
-          console.warn("Anonymous auth not enabled, proceeding unauthenticated:", err.message);
-        });
-      }
-    });
-
-    // Test connection as per guidelines
-    const testConnection = async () => {
-      try {
-        await getDocFromServer(doc(db, 'test', 'connection'));
-      } catch (error) {
-        if(error instanceof Error && error.message.includes('the client is offline')) {
-          console.error("Please check your Firebase configuration. ");
-        }
-      }
-    };
-    testConnection();
-
-    return () => unsubscribe();
-  }, []);
 
   // Trigger save when data is ready
   useEffect(() => {
     if (data) {
-      saveSnapshot(data);
+      void saveSnapshot(selectedBuoy, data).catch(console.error);
     }
-  }, [data]);
+  }, [data, selectedBuoy]);
 
-  // Sync historical data from Firestore
   useEffect(() => {
     if (!selectedBuoy) return;
+    let cancelled = false;
+    loadHistory(selectedBuoy).then((historyData) => { if (!cancelled) setHistory(historyData); }).catch(console.error);
+    return () => { cancelled = true; };
+  }, [selectedBuoy, data?.timestamp]);
 
-    // Removed orderBy to avoid requiring a composite index in Firestore
-    const q = query(
-      collection(db, "buoy_snapshots"),
-      where("buoyId", "==", selectedBuoy)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      console.log(`[Firestore] Received ${snapshot.size} history points for ${selectedBuoy}`);
-      const historyData: HistoryPoint[] = snapshot.docs
-        .map(doc => {
-          const d = doc.data();
-          return {
-            time: d.timestamp,
-            tempC: d.tempC,
-            tempF: d.tempF,
-            airTempC: d.airTempC,
-            airTempF: d.airTempF,
-            windSpeed: d.windSpeed,
-            precipitation: d.precipitation,
-            humidity: d.humidity,
-            dewpoint: d.dewpoint,
-            dewpointF: d.dewpoint ? (d.dewpoint * 9/5 + 32) : null,
-            precipitationProbability: d.precipitationProbability
-          };
-        })
-        .filter(p => p.time && !isNaN(new Date(p.time).getTime())) // Filter out invalid points
-        .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-      
-      console.log(`[Firestore] Sorted ${historyData.length} records for history`);
-      
-      setHistory(historyData);
-    }, (err) => {
-      handleFirestoreError(err, OperationType.GET, "buoy_snapshots");
-    });
-
-    return () => unsubscribe();
-  }, [selectedBuoy]);
-
-  const saveSnapshot = useCallback(async (buoyData: BuoyData) => {
-    if (!buoyData.timestamp) return;
-
-    try {
-      setIsSyncing(true);
-      
-      // Normalize timestamp to ISO format for consistent sorting and rule validation
-      const normalizedTimestamp = new Date(buoyData.timestamp).toISOString();
-      
-      // Check if this snapshot already exists to avoid duplicates
-      const q = query(
-        collection(db, "buoy_snapshots"),
-        where("buoyId", "==", selectedBuoy),
-        where("timestamp", "==", normalizedTimestamp),
-        limit(1)
-      );
-      
-      const existing = await getDocs(q);
-      if (existing.empty) {
-        await addDoc(collection(db, "buoy_snapshots"), {
-          buoyId: selectedBuoy,
-          timestamp: normalizedTimestamp,
-          recordedAt: new Date().toISOString(),
-          tempC: buoyData.tempC,
-          tempF: buoyData.tempF,
-          airTempC: buoyData.airTempC,
-          airTempF: buoyData.airTempF,
-          windSpeed: buoyData.windSpeed,
-          precipitation: buoyData.precipitation,
-          humidity: (buoyData.humidity === null || isNaN(buoyData.humidity)) ? null : buoyData.humidity,
-          dewpoint: buoyData.dewpoint || null,
-          precipitationProbability: buoyData.precipitationProbability || null,
-          lat: buoyData.lat ?? null,
-          lon: buoyData.lon ?? null,
-          serverTime: serverTimestamp()
-        });
-        console.log("Snapshot saved to Firestore:", normalizedTimestamp);
-      }
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, "buoy_snapshots");
-    } finally {
-      setIsSyncing(false);
+  const fetchData = useCallback(async () => {
+    if (!navigator.onLine) {
+      setPendingRefresh(true);
+      setShowOfflineAlert(true);
+      return;
     }
-  }, [user, selectedBuoy]);
+    setRefreshing(true);
+    setError(null);
+    setData(null);
+    try {
+      const [currentResult, mapResult] = await Promise.all([getBuoyData(selectedBuoy), getAllBuoys()]);
+      setData(currentResult);
+      setAllBuoys(mapResult);
+      setLastFetchTime(new Date());
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [selectedBuoy]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -423,28 +232,10 @@ export default function App() {
   useEffect(() => {
     if (isOnline && pendingRefresh) {
       setPendingRefresh(false);
-      fetchData();
+      void fetchData();
     }
-  }, [isOnline, pendingRefresh]);
+  }, [isOnline, pendingRefresh, fetchData]);
 
-  useEffect(() => {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
-    if (isStandalone) return;
-    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    setIsIOS(ios);
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      const dismissed = localStorage.getItem('pwa-prompt-dismissed');
-      if (!dismissed) setShowInstallPrompt(true);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    if (ios) {
-      const dismissed = localStorage.getItem('pwa-prompt-dismissed');
-      if (!dismissed) setShowInstallPrompt(true);
-    }
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  }, []);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -477,71 +268,8 @@ export default function App() {
   }, [isDark]);
 
   useEffect(() => {
-    const updateCountdown = () => {
-      const now = new Date();
-      const nextAutoRefresh = new Date(lastFetchTime.getTime() + 60 * 60 * 1000);
-      const diff = nextAutoRefresh.getTime() - now.getTime();
-      if (diff <= 0) {
-        fetchData();
-        return;
-      }
-      const minutes = Math.floor(diff / 60000);
-      const seconds = Math.floor((diff % 60000) / 1000);
-      setNextSync(`${minutes}:${seconds.toString().padStart(2, "0")}`);
-    };
-    updateCountdown();
-    const timer = setInterval(updateCountdown, 1000);
-    return () => clearInterval(timer);
-  }, [lastFetchTime]);
-
-  const fetchData = async () => {
-    if (!navigator.onLine) {
-      setPendingRefresh(true);
-      setShowOfflineAlert(true);
-      return;
-    }
-    setRefreshing(true);
-    setError(null);
-    setData(null); // Always clear data when fetching to avoid showing stale buoy data
-    
-    try {
-      const [currentRes, mapRes] = await Promise.all([
-        fetch(`/api/buoy-data?buoy=${selectedBuoy}&t=${Date.now()}`, { cache: 'no-store' }),
-        fetch(`/api/all-buoys?t=${Date.now()}`, { cache: 'no-store' })
-      ]);
-      if (!currentRes.ok) throw new Error(`Server error: ${currentRes.status}`);
-      const currentResult = await currentRes.json();
-      const mapResult = await mapRes.json().catch(() => []);
-      setData(currentResult);
-      setAllBuoys(mapResult);
-      setLastFetchTime(new Date());
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "An unknown error occurred");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [selectedBuoy]);
-
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setDeferredPrompt(null);
-        setShowInstallPrompt(false);
-      }
-    }
-  };
-
-  const dismissPrompt = () => {
-    localStorage.setItem('pwa-prompt-dismissed', 'true');
-    setShowInstallPrompt(false);
-  };
+    void fetchData();
+  }, [fetchData]);
 
   return (
     <ErrorBoundary>
@@ -552,46 +280,6 @@ export default function App() {
         <div className="lake-waves" />
       </>
 
-      <AnimatePresence>
-        {showShutdownBanner && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="shrink-0 bg-yellow-400 text-neutral-900 border-b border-yellow-500/30 overflow-hidden relative z-50 text-[13px] leading-relaxed py-3 px-4 sm:px-6 shadow-md"
-          >
-            <div className="max-w-4xl mx-auto flex items-start gap-3 pr-8 sm:pr-10 relative">
-              <AlertTriangle className="w-5 h-5 text-neutral-950 shrink-0 mt-0.5" />
-              <div className="flex-1 font-bold">
-                <span className="font-extrabold uppercase tracking-wider text-red-800 mr-2">Notice:</span>
-                This project will be shutting down soon. If you use this app and care about keeping it alive, please email{" "}
-                <a 
-                  href="mailto:jagon@alienfacepalm.com" 
-                  className="underline hover:text-neutral-950 transition-colors font-extrabold"
-                >
-                  jagon@alienfacepalm.com
-                </a>{" "}
-                to express your opinion, or let us know if you would support options like Patreon or donations. Currently, hosting costs about $50/month because we continuously collect historical data; we could potentially disable history to lower costs if that part isn't important to you.
-              </div>
-              <button
-                onClick={() => {
-                  try {
-                    localStorage.setItem("shutdown-banner-dismissed-at", Date.now().toString());
-                  } catch (e) {
-                    console.error("Local storage error:", e);
-                  }
-                  setShowShutdownBanner(false);
-                }}
-                className="absolute right-0 top-0 sm:top-1/2 sm:-translate-y-1/2 p-2 rounded-full hover:bg-neutral-950/10 text-neutral-900 hover:text-neutral-950 transition-all cursor-pointer flex items-center justify-center"
-                title="Dismiss message"
-              >
-                <X className="w-4 h-4 shrink-0" />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <header className="shrink-0 z-50 bg-surface/70 backdrop-blur-2xl flex items-center justify-between px-4 sm:px-6 min-h-[4rem] border-b border-black/5 dark:border-white/5 pt-safe">
         <div className="flex items-center gap-2 sm:gap-3">
@@ -722,11 +410,11 @@ export default function App() {
                   </AnimatePresence>
 
                   {/* Current Conditions Card */}
-                  <section className={`relative overflow-hidden bg-surface-container-low rounded-[2.5rem] p-8 shadow-sm border border-black/5 dark:border-white/5`}>
-                    <img 
-                      src={getBuoyBackground()} 
-                      alt="Lake Washington seasonal background" 
-                      className="absolute inset-0 w-full h-full object-cover opacity-[0.4] dark:opacity-[0.5] pointer-events-none select-none" 
+                  <section className="relative overflow-hidden bg-surface-container-low rounded-[2.5rem] p-8 shadow-sm border border-black/5 dark:border-white/5">
+                    <img
+                      src={getBuoyBackground()}
+                      alt="Lake Washington seasonal background"
+                      className="absolute inset-0 w-full h-full object-cover opacity-[0.4] dark:opacity-[0.5] pointer-events-none select-none"
                     />
                     <div className="relative z-10">
                       <div className="flex justify-between items-start">
@@ -819,7 +507,6 @@ export default function App() {
                               <span className="text-primary font-black">Updated</span> <span className="text-on-surface">{new Date(data?.timestamp || "").toLocaleDateString()}</span> at <span className="text-on-surface">{new Date(data?.timestamp || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
                             </p>
                             <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                              {isSyncing && <Database className="w-4 h-4 text-primary animate-pulse" />}
                               <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-on-surface-variant">
                                 <span className="text-primary font-black">Checked</span> <span className="text-on-surface">{lastFetchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span>
                               </p>
@@ -1198,7 +885,7 @@ export default function App() {
                     <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 flex items-start gap-4">
                       <div className="mt-0.5"><Database className="w-5 h-5 text-primary" /></div>
                       <p className="text-xs leading-relaxed text-on-surface font-semibold">
-                        <span className="text-primary font-black uppercase tracking-wider block mb-1">Real-Time Data Collection</span> This history is built dynamically. Our server monitors the buoy 24/7, capturing snapshots every hour to create a continuous record of lake conditions.
+                        <span className="text-primary font-black uppercase tracking-wider block mb-1">On-Device History</span> Snapshots are saved locally on this device while you use the app. Open the app periodically to build trend charts — data stays on your phone, not in the cloud.
                       </p>
                     </div>
                   </div>
@@ -1411,20 +1098,6 @@ export default function App() {
         </div>
       </nav>
 
-      <AnimatePresence>
-        {showInstallPrompt && (
-          <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed bottom-24 left-4 right-4 z-[100] bg-surface-container-low border border-black/5 dark:border-white/10 rounded-3xl p-5 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="relative shrink-0"><div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center text-white shadow-xl"><Mountain className="w-8 h-8" /></div></div>
-                <div><h3 className="text-sm font-black text-on-surface uppercase tracking-tight">Install 2lakes.app</h3><p className="text-[11px] text-on-surface-variant opacity-70 mt-0.5">Add to your home screen for quick access.</p></div>
-              </div>
-              <button onClick={dismissPrompt} className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors"><X className="w-5 h-5 text-on-surface-variant" /></button>
-            </div>
-            <div className="mt-5">{isIOS ? <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 space-y-3"><div className="flex items-center gap-3 text-xs font-medium text-on-surface"><div className="w-6 h-6 rounded-lg bg-white dark:bg-black flex items-center justify-center shadow-sm"><Share className="w-3.5 h-3.5" /></div><span>1. Tap the Share button in Safari</span></div><div className="flex items-center gap-3 text-xs font-medium text-on-surface"><div className="w-6 h-6 rounded-lg bg-white dark:bg-black flex items-center justify-center shadow-sm"><Download className="w-3.5 h-3.5 rotate-180" /></div><span>2. Select "Add to Home Screen"</span></div></div> : <button onClick={handleInstallClick} className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"><Download className="w-4 h-4" />Install App</button>}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {showOfflineAlert && !isOnline && (
