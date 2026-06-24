@@ -8,7 +8,11 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "node scripts/dev-port.mjs free && tsx server.ts",
+    "dev:port:check": "node scripts/dev-port.mjs check",
+    "dev:port:status": "node scripts/dev-port.mjs status",
+    "dev:port:free": "node scripts/dev-port.mjs free",
+    "dev:port:report": "node scripts/dev-port.mjs report",
     "start": "node server.ts",
     "build": "vite build",
     "preview": "vite preview",

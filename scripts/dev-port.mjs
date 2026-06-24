@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Single dev-server port guard for 2lakes mobile — port 5173 only.
+ * Single dev-server port guard for 2lakes root — port 3000 only.
  */
 import net from "node:net";
 import path from "node:path";
@@ -8,7 +8,7 @@ import { execFileSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-const DEV_PORT = 5173;
+const DEV_PORT = 3000;
 const DEFAULT_PORT = DEV_PORT;
 const DEFAULT_HOST = "127.0.0.1";
 
@@ -109,9 +109,7 @@ function formatConflictReport(status, actor = "agent") {
     `- **Requested port:** ${status.port}`,
     `- **URL:** ${status.url}`,
     `- **Status:** in use by ${ownerText}`,
-    `- **Action taken:** none — reported to parent`,
-    "",
-    "**Parent should:** run `pnpm dev:port:free` or `pnpm dev` (auto-reclaims). Never start Vite on 5174+.",
+    `- **Action taken:** none — run \`pnpm dev:port:free\` or \`pnpm dev\` (auto-reclaims)`,
   ].join("\n");
 }
 

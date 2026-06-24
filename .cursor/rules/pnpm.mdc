@@ -17,7 +17,7 @@ alwaysApply: true
 | Task | Repo root (`./`) | Mobile (`mobile/`) |
 |------|------------------|---------------------|
 | Install | `pnpm install` | `pnpm install` |
-| Dev | `pnpm dev` (port **3000**) | `pnpm dev` (port **5173**, `strictPort`) |
+| Dev | `pnpm dev` (port **3000**, auto-reclaims) | `pnpm dev` (port **5173**, auto-reclaims) |
 | Build | `pnpm build` | `pnpm build` |
 | Lint | `pnpm lint` | `pnpm lint` |
 | Tests | — | `pnpm test`, `pnpm test:pr`, `pnpm test:e2e` |

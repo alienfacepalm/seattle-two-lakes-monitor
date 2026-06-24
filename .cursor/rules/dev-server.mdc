@@ -1,47 +1,36 @@
 ---
-description: Dev server ports — no silent port hopping (root 3000, mobile 5173)
+description: Dev server — fixed port, kill to reclaim, refresh browser tab (no port hopping)
 alwaysApply: true
 ---
 
-# Dev server ports
+# Dev server
 
-**Fixed ports only.** Do not hop to `5174+` or alternate ports when the configured port is taken.
+**One port per package. Never hop ports.** If the port is occupied, **kill the listener, reclaim the port, then start `pnpm dev`.**
 
-## Repo root (`./`)
+## Ports
 
-| Setting | Value |
-|---------|--------|
-| Command | `pnpm dev` |
-| Port | **3000** (`tsx server.ts`) |
-| URL | `http://localhost:3000/` |
+| Package | Command (from package dir) | Port | URL |
+|---------|----------------------------|------|-----|
+| Repo root | `pnpm dev` | **3000** | `http://localhost:3000/` |
+| `mobile/` | `pnpm dev` | **5173** | `http://127.0.0.1:5173/` |
 
-If port 3000 is in use, **stop and report** — do not start a second server on another port unless the user asks.
+Both `dev` scripts run **`dev-port.mjs free`** first (auto-kill stale listeners).
 
-## Mobile (`mobile/`)
+Manual reclaim: `pnpm dev:port:free` · Status: `pnpm dev:port:status`
 
-| Setting | Value |
-|---------|--------|
-| Command | `pnpm dev` |
-| Port | **5173** (`strictPort: true`) |
-| URL | `http://127.0.0.1:5173/` |
+## Starting dev (agent workflow)
 
-Config: `mobile/vite.config.ts`, `mobile/package.json`, `mobile/playwright.config.ts`, `mobile/scripts/dev-port.mjs`.
-
-### Before starting mobile dev server
-
-1. Run **`pnpm dev:port:check`** (from `mobile/`).
-2. If **free** → **`pnpm dev`** once (background OK).
-3. If **in use** → **do not** start another Vite instance or use another port.
-
-| Situation | Action |
-|-----------|--------|
-| Port serves 2lakes / Vite and matches the task | **Reuse** `http://127.0.0.1:5173/` |
-| Orphan from your session | **`pnpm dev:port:free`**, then **`pnpm dev`** |
-| Blocked by another app | **Stop and report** — do not hop ports |
-
-Multitask / subagents: run **`pnpm dev:port:check`** first; on conflict use **`pnpm dev:port:report`**.
+1. From the correct package directory, run **`pnpm dev`** (background OK).
+   - Port busy → script kills the owner and starts on the fixed port.
+   - **Do not** use `5174+`, `--port` overrides, or bare `vite` / `tsx` without the port guard.
+2. **Browser** — after the server is up:
+   - `browser_tabs` → **list**
+   - If a tab already shows the dev URL (or same host/port) → **`browser_navigate`** to that URL on that tab (refresh).
+   - Otherwise → **`browser_navigate`** to the dev URL (reuses the active tab; set `newTab: true` only if no tab exists or user asks).
+   - **Do not** open the app on a different port.
 
 ## Do not
 
-- Run bare `vite` without the project's port flags (use **`pnpm dev`**).
-- Start multiple dev servers on 5173, 5174, 5175…
+- Start a second dev server on another port when the fixed port is taken.
+- Leave orphan listeners blocking 3000 or 5173 — always reclaim with `pnpm dev` or `pnpm dev:port:free`.
+- Open `localhost:5174+` or alternate URLs to “work around” a conflict.

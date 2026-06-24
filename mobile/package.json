@@ -8,7 +8,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "node scripts/dev-port.mjs check && vite --host 127.0.0.1 --port 5173 --strictPort",
+    "dev": "node scripts/dev-port.mjs free && vite --host 127.0.0.1 --port 5173 --strictPort",
     "dev:port:check": "node scripts/dev-port.mjs check",
     "dev:port:status": "node scripts/dev-port.mjs status",
     "dev:port:free": "node scripts/dev-port.mjs free",
